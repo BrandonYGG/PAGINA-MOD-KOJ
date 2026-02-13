@@ -24,7 +24,7 @@ export default function Footer() {
               </div>
               <div className="flex flex-col">
                 <span className="text-xl font-bold font-headline text-primary tracking-tight">
-                  KOH <span className="text-zinc-400 font-light">Avanzadas</span>
+                  KOH <span className="text-zinc-400 font-light"> Construcciones Avanzadas</span>
                 </span>
               </div>
             </Link>
@@ -62,7 +62,7 @@ export default function Footer() {
                 </Link>
             </div>
             <p className="mt-6 text-xs text-zinc-500 font-mono tracking-tighter">
-              EDO. DE MÉXICO | CDMX | HIDALGO
+              EDO. DE MÉXICO | CDMX 
             </p>
           </div>
 
