@@ -1,7 +1,6 @@
 'use client';
 
 import Link from "next/link";
-import Image from "next/image";
 import { FaFacebookF, FaInstagram, FaWhatsapp, FaTiktok, FaEnvelope } from "react-icons/fa6";
 
 export default function Footer() {
@@ -15,18 +14,19 @@ export default function Footer() {
           {/* Columna 1: Logo y Eslogan */}
           <div className="flex flex-col items-start space-y-4">
             <Link href="/" className="flex items-center gap-3 group" prefetch={false}>
-              <div className="relative h-12 w-12 overflow-hidden rounded-full border border-zinc-700 group-hover:border-primary transition-colors">
-                <Image 
+              {/* Contenedor circular con fondo blanco para que el logo resalte */}
+              <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center overflow-hidden border border-zinc-700 shadow-lg">
+                <img 
                   src="/logoKOH.jpg" 
                   alt="Logo KOH" 
-                  fill
-                  className="object-cover"
-                  priority
+                  className="h-full w-full object-contain"
                 />
               </div>
-              <span className="text-xl font-bold font-headline text-primary tracking-tight">
-                KOH <span className="text-zinc-400 font-light">Avanzadas</span>
-              </span>
+              <div className="flex flex-col">
+                <span className="text-xl font-bold font-headline text-primary tracking-tight">
+                  KOH <span className="text-zinc-400 font-light">Avanzadas</span>
+                </span>
+              </div>
             </Link>
             <p className="text-sm text-zinc-500 max-w-xs leading-relaxed">
               Construyendo el futuro con bases sólidas, ingeniería de vanguardia y la confianza de nuestros clientes.
