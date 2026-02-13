@@ -1,0 +1,94 @@
+[
+  {
+    "id": "proj-1",
+    "title": "Plaza Atlautla Tepecoculco",
+    "description": "Transformación de un espacio público en un centro de vida comunitario, fomentando la convivencia y el desarrollo local.",
+    "beforeImageUrl": "/projects/images/proyecto1.jpg",
+    "gallery": [
+      "/projects/images/Info1.jpg",
+      "/projects/images/Info1-1.png",
+      "/projects/images/Info1-2.png",
+      "/projects/images/Info1-3.png"
+    ]
+  },
+  {
+    "id": "proj-2",
+    "title": "Parque Lineal Urbano en Ayapango",
+    "description": "Creación de un pulmón verde y corredor recreativo para mejorar la calidad de vida y el esparcimiento de los habitantes.",
+    "beforeImageUrl": "/projects/images/proyecto2.jpg",
+    "gallery": [
+      "/projects/images/Info2.jpg",
+      "/projects/images/Info2-1.png",
+      "/projects/images/Info2-2.png",
+      "/projects/images/Info2-3.png",
+      "/projects/images/Info2-4.png"
+    ]
+  },
+  {
+    "id": "proj-3",
+    "title": "Almacén Industrial (Tienda 3B)",
+    "description": "Diseño y construcción de una solución logística a gran escala, optimizada para la eficiencia operativa y el almacenamiento moderno.",
+    "beforeImageUrl": "/projects/images/proyecto3.jpg",
+    "gallery": [
+      "/projects/images/Info3.jpg",
+      "/projects/images/Info3-1.png",
+      "/projects/images/Info3-2.png",
+      "/projects/images/Info3-3.png",
+      "/projects/images/Info3-4.png"
+    ]
+  },
+  {
+    "id": "proj-4",
+    "title": "Unidad Deportiva Santiago Tepopula",
+    "description": "Fomento al deporte y la salud comunitaria a través de la creación de instalaciones modernas y seguras para diversas disciplinas.",
+    "beforeImageUrl": "/projects/images/proyecto4.jpg",
+    "gallery": [
+      "/projects/images/Info4.jpg"
+    ]
+  },
+  {
+    "id": "proj-5",
+    "title": "Plaza Cívica de Santiago Tepopula",
+    "description": "Renovación integral del corazón del pueblo, creando un espacio digno para eventos cívicos, culturales y sociales.",
+    "beforeImageUrl": "/projects/images/proyecto5.jpg",
+    "gallery": [
+      "/projects/images/Info5.jpg"
+    ]
+  },
+  {
+    "id": "proj-6",
+    "title": "Plaza San Juan Tehuixtitlan",
+    "description": "Construcción de un nuevo punto de encuentro que integra tradición y modernidad para el disfrute de la comunidad.",
+    "beforeImageUrl": "/projects/images/proyecto6.jpg",
+    "gallery": [
+      "/projects/images/Info6.jpg"
+    ]
+  },
+  {
+    "id": "proj-7",
+    "title": "Pavimentación Calle Matamoros",
+    "description": "Mejora de la infraestructura vial para garantizar una movilidad más segura, fluida y eficiente para residentes y vehículos.",
+    "beforeImageUrl": "/projects/images/proyecto7.jpg",
+    "gallery": [
+      "/projects/images/Info7.jpg"
+    ]
+  },
+  {
+    "id": "proj-8",
+    "title": "Pavimentación Calle 20 de Noviembre",
+    "description": "Modernización de una arteria clave, mejorando la conectividad y la calidad de vida de la zona con concreto de alta durabilidad.",
+    "beforeImageUrl": "/projects/images/proyecto8.jpg",
+    "gallery": [
+      "/projects/images/Info8.jpg"
+    ]
+  },
+  {
+    "id": "proj-9",
+    "title": "Cancha de fútbol \"La Playa\"",
+    "description": "Creación de un espacio deportivo de primer nivel para promover el talento local y ofrecer un área de recreación para todas las edades.",
+    "beforeImageUrl": "/projects/images/proyecto9.jpg",
+    "gallery": [
+      "/projects/images/Info9.jpg"
+    ]
+  }
+]

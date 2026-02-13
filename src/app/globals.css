@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Fondo y texto */
+    --background: 0 0% 98%;        /* Blanco */
+    --foreground: 0 0% 10%;       /* Negro/gris oscuro */
+
+    /* Tarjetas y contenedores */
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+
+    /* Colores principales */
+    --primary: 140 35% 25%;       /* Verde institucional */
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 0 0% 75%;        /* Gris concreto */
+    --secondary-foreground: 0 0% 15%;
+
+    --muted: 0 0% 85%;
+    --muted-foreground: 0 0% 40%;
+
+    --accent: 25 40% 20%;         /* Café oscuro casi negro */
+    --accent-foreground: 0 0% 98%;
+
+    /* Estados */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    /* Bordes e inputs */
+    --border: 0 0% 80%;
+    --input: 0 0% 80%;
+    --ring: 140 35% 25%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* Fondo y texto */
+    --background: 0 0% 8%;        /* Negro profundo */
+    --foreground: 0 0% 95%;      /* Blanco */
+
+    /* Tarjetas y contenedores */
+    --card: 0 0% 12%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 95%;
+
+    /* Colores principales */
+    --primary: 140 35% 40%;      /* Verde visible en oscuro */
+    --primary-foreground: 0 0% 5%;
+
+    --secondary: 0 0% 25%;       /* Gris acero */
+    --secondary-foreground: 0 0% 95%;
+
+    --muted: 0 0% 25%;
+    --muted-foreground: 0 0% 65%;
+
+    --accent: 25 40% 30%;        /* Café */
+    --accent-foreground: 0 0% 95%;
+
+    /* Estados */
+    --destructive: 0 60% 35%;
+    --destructive-foreground: 0 0% 98%;
+
+    /* Bordes e inputs */
+    --border: 0 0% 25%;
+    --input: 0 0% 25%;
+    --ring: 140 35% 40%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply scroll-smooth;
+  }
+}

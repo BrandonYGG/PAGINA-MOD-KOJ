@@ -1,0 +1,34 @@
+{
+  "placeholderImages": [
+    {
+      "id": "project-1",
+      "description": "Interior of a spacious, modern living room.",
+      "imageUrl": "https://images.unsplash.com/photo-1600210492493-0946911123ea?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxtb2Rlcm4lMjBpbnRlcmlvcnxlbnwwfHx8fDE3NjQ5OTg4NzJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "modern interior"
+    },
+    {
+      "id": "project-2",
+      "description": "Exterior facade of a large residential complex.",
+      "imageUrl": "https://images.unsplash.com/photo-1594484208280-efa00f96fc21?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxhcGFydG1lbnQlMjBidWlsZGluZ3xlbnwwfHx8fDE3NjQ5ODMyODh8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "apartment building"
+    },
+    {
+      "id": "project-3",
+      "description": "A stylishly designed commercial retail space.",
+      "imageUrl": "https://images.unsplash.com/photo-1546213290-e1b492ab3eee?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxyZXRhaWwlMjBzdG9yZXxlbnwwfHx8fDE3NjUwMjc0MTR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "retail store"
+    },
+    {
+      "id": "project-4",
+      "description": "A bird's eye view of a completed construction project.",
+      "imageUrl": "https://images.unsplash.com/photo-1623428454599-0b106ed85f67?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxkcm9uZSUyMGNvbnN0cnVjdGlvbnxlbnwwfHx8fDE3NjUwNzEyNDZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "drone construction"
+    },
+    {
+      "id": "project-5",
+      "description": "Detail shot of architectural elements of a building.",
+      "imageUrl": "https://images.unsplash.com/photo-1656081635010-2e2636b61c6d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxhcmNoaXRlY3R1cmFsJTIwZGV0YWlsfGVufDB8fHx8MTc2NTAzMzU0M3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "architectural detail"
+    }
+  ]
+}
