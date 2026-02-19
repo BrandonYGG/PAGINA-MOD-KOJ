@@ -114,14 +114,30 @@ export default function AdminPage() {
     } catch (err) { alert("Error al eliminar"); }
   };
 
+  // --- FUNCIÓN DE BORRADO DE VIDEO CON LIMPIEZA TOTAL ---
   const handleBorrarVideo = async (id: string, thumbUrl: string) => {
-    if (!confirm("¿Eliminar este video?")) return;
+    if (!confirm("¿Eliminar este video? Se borrará el registro y la imagen del servidor.")) return;
     try {
-      const fileName = thumbUrl.split('/').pop()!;
-      await supabase.storage.from('galeria').remove([fileName]);
-      await supabase.from('videos_proyectos').delete().eq('id', id);
+      setCargando(true);
+      
+      // 1. Extraer nombre del archivo y borrar del Storage
+      const fileName = thumbUrl.split('/').pop();
+      if (fileName) {
+        await supabase.storage.from('galeria').remove([fileName]);
+      }
+
+      // 2. Borrar de la base de datos
+      const { error } = await supabase.from('videos_proyectos').delete().eq('id', id);
+      
+      if (error) throw error;
+      
+      alert("Video e imagen eliminados correctamente.");
       fetchVideos();
-    } catch (err) { alert("Error al eliminar video"); }
+    } catch (err: any) { 
+      alert("Error al eliminar video: " + err.message); 
+    } finally {
+      setCargando(false);
+    }
   };
 
   return (
@@ -193,7 +209,7 @@ export default function AdminPage() {
           </section>
 
           {/* LISTADOS DE CONTROL */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 pb-10">
             <div>
               <h2 className="text-xl font-bold mb-6 text-zinc-400">FOTOS ACTIVAS</h2>
               <div className="grid gap-2">
