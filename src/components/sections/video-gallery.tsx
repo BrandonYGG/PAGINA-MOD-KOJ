@@ -1,78 +1,100 @@
-import React, { useEffect, useState } from 'react';
-import { supabase } from '../supabaseClient';
+'use client';
 
-const VideoGallery = () => {
-  const [videos, setVideos] = useState([]);
+import { useEffect, useState } from 'react';
+import { Play, Loader2 } from 'lucide-react';
+// IMPORTACIÓN CORREGIDA: Apunta a src/supabaseClient.ts
+import { supabase } from '@/supabaseClient'; 
+
+interface VideoProject {
+  id: string;
+  titulo: string;
+  youtube_url: string;
+  url_miniatura: string;
+}
+
+export default function VideoGallery() {
+  const [videos, setVideos] = useState<VideoProject[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchVideos = async () => {
+    async function fetchVideos() {
+      // Intentamos traer los datos de la tabla 'videos_proyectos'
       const { data, error } = await supabase
         .from('videos_proyectos')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (!error && data) setVideos(data);
-    };
+      if (!error && data) {
+        setVideos(data);
+      }
+      setLoading(false);
+    }
     fetchVideos();
   }, []);
 
+  // Si no hay videos en la base de datos, no mostramos la sección para que la web luzca limpia
+  if (!loading && videos.length === 0) return null;
+
   return (
-    <section id="videos" className="py-20 bg-slate-50">
-      <div className="max-w-7xl mx-auto px-6">
+    <section id="videos" className="py-20 bg-[#f9fafb]">
+      <div className="container mx-auto px-4 md:px-6">
         
-        {/* TÍTULO ACTUALIZADO: ENFOQUE EN CONCEPTO Y DESARROLLO */}
         <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-black text-slate-900 mb-4 uppercase tracking-tighter">
-            Desarrollo y <span className="text-red-600">Concepto Editorial</span>
+          <h2 className="text-3xl md:text-4xl font-bold font-headline text-[#2d4a3e] uppercase tracking-tight">
+            Nuestra Visión en Desarrollo
           </h2>
-          <div className="w-24 h-2 bg-red-600 mx-auto rounded-full"></div>
-          <p className="mt-6 text-slate-600 font-medium max-w-xl mx-auto italic">
-            Nuestra metodología visual: la evolución de cada proyecto desde su concepción hasta el diseño final.
+          <div className="h-1 w-20 bg-[#7c8d74] mx-auto mt-4"></div>
+          <p className="mt-6 text-zinc-600 max-w-2xl mx-auto">
+            Conoce cómo transformamos ideas en realidades a través de nuestras presentaciones y procesos de diseño.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-          {videos.map((video) => (
-            <a 
-              key={video.id} 
-              href={video.youtube_url} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="group relative block bg-white rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-3"
-            >
-              {/* Imagen con object-contain para respetar el formato original */}
-              <div className="relative aspect-video bg-slate-200 overflow-hidden">
-                <img 
-                  src={video.url_miniatura} 
-                  alt={video.titulo}
-                  className="w-full h-full object-contain transition-transform duration-700 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors flex items-center justify-center">
-                  <div className="w-16 h-16 bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg transform transition-transform duration-500 group-hover:scale-110">
-                    <svg className="w-8 h-8 fill-current" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <Loader2 className="w-10 h-10 animate-spin text-[#7c8d74]" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {videos.map((video) => (
+              <a 
+                key={video.id} 
+                href={video.youtube_url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="group relative flex flex-col overflow-hidden rounded-2xl bg-white shadow-md hover:shadow-2xl transition-all duration-500"
+              >
+                {/* Contenedor de Imagen */}
+                <div className="relative aspect-video overflow-hidden">
+                  <img 
+                    src={video.url_miniatura} 
+                    alt={video.titulo}
+                    className="object-cover w-full h-full transition-transform duration-700 group-hover:scale-110"
+                  />
+                  <div className="absolute inset-0 bg-black/20 group-hover:bg-black/50 transition-colors duration-300"></div>
+                  
+                  {/* Icono de Play */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="bg-white/20 backdrop-blur-md p-4 rounded-full border border-white/30 transform transition-all duration-300 group-hover:scale-110 group-hover:bg-red-600 group-hover:border-red-600">
+                      <Play className="w-8 h-8 text-white fill-current" />
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="p-6">
-                <h3 className="text-xl font-black text-slate-800 uppercase group-hover:text-red-600 transition-colors">
-                  {video.titulo}
-                </h3>
-                <div className="mt-3 flex items-center text-red-600 font-bold text-sm">
-                  REPRODUCIR CONCEPTO 
-                  <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                  </svg>
+                {/* Info del Video */}
+                <div className="p-6">
+                  <h3 className="text-lg font-bold text-zinc-800 group-hover:text-[#2d4a3e] transition-colors">
+                    {video.titulo}
+                  </h3>
+                  <div className="flex items-center mt-3 text-red-600 text-sm font-semibold">
+                    <span>VER EN YOUTUBE</span>
+                    <span className="ml-2 transform transition-transform group-hover:translate-x-1">→</span>
+                  </div>
                 </div>
-              </div>
-            </a>
-          ))}
-        </div>
+              </a>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );
-};
-
-export default VideoGallery;
+}
