@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { Play, Loader2 } from 'lucide-react';
-import { supabase } from '@/lib/supabase'; // Verifica que esta ruta sea la correcta en tu proyecto
+// IMPORTACIÓN CORREGIDA: Apunta a src/supabaseClient.ts
+import { supabase } from '@/supabaseClient'; 
 
 interface VideoProject {
   id: string;
@@ -17,6 +18,7 @@ export default function VideoGallery() {
 
   useEffect(() => {
     async function fetchVideos() {
+      // Intentamos traer los datos de la tabla 'videos_proyectos'
       const { data, error } = await supabase
         .from('videos_proyectos')
         .select('*')
@@ -30,7 +32,7 @@ export default function VideoGallery() {
     fetchVideos();
   }, []);
 
-  // Si terminó de cargar y no hay videos, no mostramos la sección para que no se vea vacía
+  // Si no hay videos en la base de datos, no mostramos la sección para que la web luzca limpia
   if (!loading && videos.length === 0) return null;
 
   return (
@@ -42,6 +44,9 @@ export default function VideoGallery() {
             Nuestros Proyectos en Movimiento
           </h2>
           <div className="h-1 w-20 bg-[#7c8d74] mx-auto mt-4"></div>
+          <p className="mt-6 text-zinc-600 max-w-2xl mx-auto">
+            Visualiza el proceso constructivo y los resultados finales a través de nuestra galería de videos.
+          </p>
         </div>
 
         {loading ? (
@@ -58,6 +63,7 @@ export default function VideoGallery() {
                 rel="noopener noreferrer"
                 className="group relative flex flex-col overflow-hidden rounded-2xl bg-white shadow-md hover:shadow-2xl transition-all duration-500"
               >
+                {/* Contenedor de Imagen */}
                 <div className="relative aspect-video overflow-hidden">
                   <img 
                     src={video.url_miniatura} 
@@ -65,12 +71,16 @@ export default function VideoGallery() {
                     className="object-cover w-full h-full transition-transform duration-700 group-hover:scale-110"
                   />
                   <div className="absolute inset-0 bg-black/20 group-hover:bg-black/50 transition-colors duration-300"></div>
+                  
+                  {/* Icono de Play */}
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="bg-white/20 backdrop-blur-md p-4 rounded-full border border-white/30 transform transition-all duration-300 group-hover:scale-110 group-hover:bg-red-600 group-hover:border-red-600">
                       <Play className="w-8 h-8 text-white fill-current" />
                     </div>
                   </div>
                 </div>
+
+                {/* Info del Video */}
                 <div className="p-6">
                   <h3 className="text-lg font-bold text-zinc-800 group-hover:text-[#2d4a3e] transition-colors">
                     {video.titulo}
