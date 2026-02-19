@@ -23,8 +23,8 @@ export default function Footer() {
                 />
               </div>
               <div className="flex flex-col">
-                <span className="text-xl font-bold font-headline text-primary tracking-tight">
-                  KOH <span className="text-zinc-400 font-light"> Construcciones Avanzadas</span>
+                <span className="text-lg md:text-xl font-bold font-headline text-primary tracking-tight leading-tight">
+                  Construcciones Avanzadas <span className="text-zinc-400 font-light">KOH</span>
                 </span>
               </div>
             </Link>
@@ -70,9 +70,9 @@ export default function Footer() {
 
         {/* Copyright */}
         <div className="border-t border-zinc-900 mt-12 pt-8 text-center">
-           <p className="text-[10px] uppercase tracking-widest text-zinc-600">
-            &copy; {year} Construcciones Avanzadas KOH. Todos los derechos reservados.
-           </p>
+            <p className="text-[10px] uppercase tracking-widest text-zinc-600">
+             &copy; {year} Construcciones Avanzadas KOH. Todos los derechos reservados.
+            </p>
         </div>
       </div>
     </footer>
