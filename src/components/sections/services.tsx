@@ -1,6 +1,6 @@
 import { 
   Home, Building, Wrench, Factory, ShoppingBag, 
-  HardHat, Paintbrush, Box, Layout, FileSpreadsheet, Map 
+  HardHat, Paintbrush, Box, Layout, FileSpreadsheet, Map, Zap, Droplets, ShieldCheck
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
@@ -8,55 +8,55 @@ const services = [
   {
     icon: Factory,
     title: 'Proyectos Industriales',
-    description: 'Diseño y construcción de fábricas, bodegas y complejos de almacenamiento optimizados para la logística industrial.',
+    description: 'Diseño y construcción de fábricas, bodegas y almacenes. Incluye instalaciones eléctricas industriales, instalaciones hidráulicas e instalaciones sanitarias de alta capacidad.',
     imageId: 'service-industrial',
   },
   {
-    icon: Home,
+    icon: Building,
     title: 'Residencial y Habitacional',
-    description: 'Casas y edificios departamentales. Cubrimos desde la cimentación e interiores hasta el mantenimiento preventivo de la obra.',
+    description: 'Casas y edificios departamentales. Proyectos integrales que incluyen cimentación, instalaciones eléctricas, instalaciones hidráulicas, instalaciones sanitarias y acabados.',
     imageId: 'service-residential',
   },
   {
-    icon: Building,
+    icon: ShoppingBag,
     title: 'Comercial y Oficinas',
-    description: 'Estudios, clínicas, locales y estacionamientos diseñados para maximizar la funcionalidad de tu inversión.',
+    description: 'Estudios, clínicas, locales y estacionamientos. Realizamos toda la infraestructura de instalaciones eléctricas, hidráulicas y sanitarias para asegurar la funcionalidad del inmueble.',
     imageId: 'service-commercial',
   },
   {
     icon: HardHat,
     title: 'Infraestructura y Obra Civil',
-    description: 'Urbanización, drenaje, redes hidráulicas, alumbrado público, parques y pavimentos estampados.',
+    description: 'Urbanización. Drenaje. Redes hidráulicas. Alumbrado público. Parques deportivos. Pavimentos estampados. Instalaciones eléctricas de baja y media tensión.',
     imageId: 'service-civil',
   },
   {
     icon: Paintbrush,
     title: 'Diseño de Interiores',
-    description: 'Transformación de espacios con acabados de alta gama, operando en toda la República Mexicana y el extranjero.',
+    description: 'Transformación de espacios con acabados de alta gama y diseño conceptual, operando con equipo técnico en toda la República Mexicana y el extranjero.',
     imageId: 'service-interiors',
   },
   {
     icon: Wrench,
-    title: 'Remodelaciones Integrales',
-    description: 'Actualización de cualquier proyecto con garantía de mantenimiento acorde a las necesidades específicas de la obra.',
+    title: 'Remodelaciones y Mantenimiento',
+    description: 'Remodelaciones de cualquier proyecto. Mantenimiento por contrato anual para inmuebles. Garantía técnica acorde a las necesidades específicas de cada obra.',
     imageId: 'service-renovation',
   },
   {
     icon: Map,
     title: 'Levantamientos y Topografía',
-    description: 'Servicios de levantamiento arquitectónico y topográfico de precisión para terrenos y cualquier tipo de inmueble.',
+    description: 'Servicios de levantamiento arquitectónico y topográfico de precisión. Realizamos el levantamiento de terrenos o cualquier inmueble en general para proyectos ejecutivos.',
     imageId: 'service-topography',
   },
   {
     icon: Layout,
     title: 'Proyectos 3D y VR',
-    description: 'Modelado en 3D y Realidad Virtual con costos por m² según ubicación. Incluye un mínimo de 3 renders profesionales.',
+    description: 'Modelado 3D y Realidad Virtual (VR). Modelado de proyecto con costo por m² según ubicación. Incluye un mínimo de 3 renders profesionales para visualización.',
     imageId: 'service-vr',
   },
   {
     icon: FileSpreadsheet,
     title: 'Gestión y Licitaciones',
-    description: 'Elaboración de presupuestos, catálogos de conceptos por partidas y generadores para obra privada o civil.',
+    description: 'Elaboración de presupuestos de proyectos, catálogos de conceptos por partidas generales, generadores de obra y licitaciones para obra pública o privada.',
     imageId: 'service-docs',
   },
 ];
@@ -67,13 +67,13 @@ export default function Services() {
       <div className="container mx-auto px-4 md:px-6">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold font-headline text-primary uppercase tracking-tight">
-            Nuestros Servicios
+            Nuestras Especialidades
           </h2>
           <p className="mt-4 max-w-3xl mx-auto text-lg text-muted-foreground">
-            Soluciones integrales de construcción, desde el diseño conceptual y realidad virtual hasta la ejecución y mantenimiento por contrato anual.
+            Soluciones integrales de construcción e ingeniería. Desde el diseño conceptual hasta la ejecución de instalaciones técnicas y mantenimiento especializado.
           </p>
         </div>
-        {/* Cambié md:grid-cols-3 por lg:grid-cols-3 para que en pantallas medianas se vea mejor */}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {services.map((service, index) => {
             const Icon = service.icon;
@@ -83,7 +83,7 @@ export default function Services() {
                   <div className="bg-primary/10 text-primary p-2.5 rounded-lg">
                     <Icon className="w-6 h-6" />
                   </div>
-                  <CardTitle className="font-headline text-lg leading-tight">{service.title}</CardTitle>
+                  <CardTitle className="font-headline text-lg leading-tight uppercase italic">{service.title}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <CardDescription className="text-sm leading-relaxed text-gray-600">
