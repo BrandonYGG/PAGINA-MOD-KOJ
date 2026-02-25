@@ -222,40 +222,22 @@ export default function AdminPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10 pb-10">
             <div>
-              <h2 className="text-xl font-bold mb-6 text-zinc-400">FOTOS ACTIVAS</h2>
-              <div className="grid gap-2">
-                {proyectos.map(p => (
-                  <div key={p.id} className="flex justify-between items-center bg-[#242622] p-4 border border-zinc-800 text-sm">
-                    <span className="truncate mr-4">{p.nombre}</span>
-                    <button 
-                      onClick={() => handleBorrar(p.id, p.miniatura_url, p.infografias)} 
-                      className="text-red-500 hover:text-red-300 font-bold uppercase text-[10px]"
-                    >
-                      Borrar
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div>
-              <h2 className="text-xl font-bold mb-6 text-zinc-400">VIDEOS ACTIVOS</h2>
-              <div className="grid gap-2">
-                {videos.map(v => (
-                  <div key={v.id} className="flex justify-between items-center bg-[#242622] p-4 border border-zinc-800 text-sm">
-                    <span className="truncate mr-4">{v.titulo}</span>
-                    <button 
-                      onClick={() => handleBorrarVideo(v.id, v.url_miniatura)} 
-                      className="text-red-500 hover:text-red-300 font-bold uppercase text-[10px]"
-                    >
-                      Borrar
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+  <h2 className="text-xl font-bold mb-6 text-zinc-400">FOTOS ACTIVAS</h2>
+  <div className="grid gap-2">
+    {proyectos.map((p) => (
+      <div key={p.id} className="flex justify-between items-center bg-[#242622] p-4 border border-zinc-800 text-sm">
+        <span className="truncate mr-4 uppercase">{p.nombre}</span>
+        
+        {/* REVISA QUE ESTÉ EXACTAMENTE ASÍ: */}
+        <button 
+          type="button"
+          onClick={() => handleBorrar(p.id, p.miniatura_url, p.infografias)} 
+          className="text-red-500 hover:text-red-300 font-bold uppercase text-[10px] cursor-pointer p-2"
+        >
+          Borrar
+        </button>
+
       </div>
-    </div>
-  );
-}
+    ))}
+  </div>
+</div>
