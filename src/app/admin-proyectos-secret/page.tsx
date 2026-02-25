@@ -60,7 +60,7 @@ export default function AdminPage() {
       const { data: thumbData } = supabase.storage.from('galeria').getPublicUrl(miniaturaName);
 
       const infoUrls = [];
-      // USAMOS archivosOrdenados EN LUGAR DE infografias PARA RESPETAR EL ORDEN DEL ARQ.
+      // Subimos los archivos en el orden que el Arq. Gio los acomodó
       if (archivosOrdenados.length > 0) {
         for (let i = 0; i < archivosOrdenados.length; i++) {
           const file = archivosOrdenados[i];
@@ -87,7 +87,6 @@ export default function AdminPage() {
     }
   };
 
-  // Lógica para Publicar Videos (Sin cambios)
   const handlePublicarVideo = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!videoTitulo || !videoUrl || !videoThumb) return alert("Todos los campos del video son obligatorios");
@@ -116,7 +115,10 @@ export default function AdminPage() {
     if (!confirm("¿Seguro que deseas eliminar este proyecto?")) return;
     try {
       const filesToDelete = [thumbUrl.split('/').pop()!];
-      if (infoUrls) infoUrls.forEach(url => filesToDelete.push(url.split('/').pop()!));
+      if (infoUrls) infoUrls.forEach(url => {
+          const fileName = url.split('/').pop();
+          if (fileName) filesToDelete.push(fileName);
+      });
       await supabase.storage.from('galeria').remove(filesToDelete);
       await supabase.from('proyectos').delete().eq('id', id);
       fetchProyectos();
@@ -146,7 +148,6 @@ export default function AdminPage() {
         </header>
 
         <div className="grid grid-cols-1 gap-16">
-          
           <section>
             <h2 className="text-[#7c8d74] font-bold mb-4 uppercase tracking-widest text-sm">Cargar Proyectos Fotográficos</h2>
             <form onSubmit={handlePublicar} className="bg-[#242622] p-8 rounded-sm shadow-2xl border-l-4 border-[#4a3424]">
@@ -173,7 +174,6 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                {/* VISUALIZADOR DE ORDEN ANTES DE PUBLICAR */}
                 {archivosOrdenados.length > 0 && (
                   <div className="bg-[#1a1c18] p-4 border border-zinc-800 rounded">
                     <p className="text-[10px] text-[#7c8d74] mb-3 uppercase font-bold tracking-widest">Orden de Galería (Usa las flechas para acomodar)</p>
@@ -199,7 +199,6 @@ export default function AdminPage() {
             </form>
           </section>
 
-          {/* SECCIONES DE VIDEOS Y LISTADOS (SE QUEDAN EXACTAMENTE IGUAL) */}
           <section>
             <h2 className="text-[#7c8d74] font-bold mb-4 uppercase tracking-widest text-sm">Cargar Video de YouTube</h2>
             <form onSubmit={handlePublicarVideo} className="bg-[#242622] p-8 rounded-sm shadow-2xl border-l-4 border-red-900">
@@ -228,7 +227,12 @@ export default function AdminPage() {
                 {proyectos.map(p => (
                   <div key={p.id} className="flex justify-between items-center bg-[#242622] p-4 border border-zinc-800 text-sm">
                     <span className="truncate mr-4">{p.nombre}</span>
-                    <button onClick={() => handleBorrar(p.id, p.miniatura_url, p.infografias)} className="text-red-500 font-bold uppercase text-[10px]">Borrar</button>
+                    <button 
+                      onClick={() => handleBorrar(p.id, p.miniatura_url, p.infografias)} 
+                      className="text-red-500 hover:text-red-300 font-bold uppercase text-[10px]"
+                    >
+                      Borrar
+                    </button>
                   </div>
                 ))}
               </div>
@@ -239,7 +243,12 @@ export default function AdminPage() {
                 {videos.map(v => (
                   <div key={v.id} className="flex justify-between items-center bg-[#242622] p-4 border border-zinc-800 text-sm">
                     <span className="truncate mr-4">{v.titulo}</span>
-                    <button onClick={() => handleBorrarVideo(v.id, v.url_miniatura)} className="text-red-500 font-bold uppercase text-[10px]">Borrar</button>
+                    <button 
+                      onClick={() => handleBorrarVideo(v.id, v.url_miniatura)} 
+                      className="text-red-500 hover:text-red-300 font-bold uppercase text-[10px]"
+                    >
+                      Borrar
+                    </button>
                   </div>
                 ))}
               </div>
