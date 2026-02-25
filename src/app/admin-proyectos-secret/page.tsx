@@ -8,10 +8,9 @@ export default function AdminPage() {
   const [nombre, setNombre] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [miniatura, setMiniatura] = useState<File | null>(null);
-  const [infografias, setInfografias] = useState<FileList | null>(null);
   const [proyectos, setProyectos] = useState<any[]>([]);
   
-  // NUEVO: Estado para manejar el orden de los archivos antes de subir
+  // Estado para manejar el orden de los archivos antes de subir
   const [archivosOrdenados, setArchivosOrdenados] = useState<File[]>([]);
 
   // Estados para Videos
@@ -37,7 +36,6 @@ export default function AdminPage() {
     if (data) setVideos(data);
   }
 
-  // Lógica para mover archivos en la previsualización
   const moverArchivo = (index: number, direccion: 'izq' | 'der') => {
     const nuevosArchivos = [...archivosOrdenados];
     const file = nuevosArchivos.splice(index, 1)[0];
@@ -46,7 +44,6 @@ export default function AdminPage() {
     setArchivosOrdenados(nuevosArchivos);
   };
 
-  // Lógica para Publicar Proyectos (Fotos)
   const handlePublicar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nombre || !miniatura) return alert("Nombre y miniatura son obligatorios");
@@ -60,7 +57,6 @@ export default function AdminPage() {
       const { data: thumbData } = supabase.storage.from('galeria').getPublicUrl(miniaturaName);
 
       const infoUrls = [];
-      // Subimos los archivos en el orden que el Arq. Gio los acomodó
       if (archivosOrdenados.length > 0) {
         for (let i = 0; i < archivosOrdenados.length; i++) {
           const file = archivosOrdenados[i];
@@ -91,7 +87,6 @@ export default function AdminPage() {
     e.preventDefault();
     if (!videoTitulo || !videoUrl || !videoThumb) return alert("Todos los campos del video son obligatorios");
     setCargando(true);
-
     try {
       const thumbName = `${Date.now()}_vthumb_${videoThumb.name}`;
       const { error: uploadError } = await supabase.storage.from('galeria').upload(thumbName, videoThumb);
@@ -153,91 +148,82 @@ export default function AdminPage() {
             <form onSubmit={handlePublicar} className="bg-[#242622] p-8 rounded-sm shadow-2xl border-l-4 border-[#4a3424]">
               <div className="grid gap-6">
                 <input type="text" placeholder="NOMBRE DEL PROYECTO" 
-                  className="w-full p-3 bg-[#2d302a] border border-zinc-700 focus:border-[#7c8d74] outline-none transition-colors" 
+                  className="w-full p-3 bg-[#2d302a] border border-zinc-700 focus:border-[#7c8d74] outline-none" 
                   value={nombre} onChange={e => setNombre(e.target.value)} />
-                
                 <textarea placeholder="DESCRIPCIÓN TÉCNICA" rows={3}
-                  className="w-full p-3 bg-[#2d302a] border border-zinc-700 focus:border-[#7c8d74] outline-none transition-colors"
+                  className="w-full p-3 bg-[#2d302a] border border-zinc-700 focus:border-[#7c8d74] outline-none"
                   value={descripcion} onChange={e => setDescripcion(e.target.value)} />
-                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4 border-y border-zinc-800">
                   <div className="flex flex-col gap-2">
-                    <label className="text-xs font-bold text-[#7c8d74]">IMAGEN PRINCIPAL (PORTADA)</label>
-                    <input type="file" accept="image/*" className="text-sm cursor-pointer" onChange={e => setMiniatura(e.target.files?.[0] || null)} />
+                    <label className="text-xs font-bold text-[#7c8d74]">IMAGEN PORTADA</label>
+                    <input type="file" accept="image/*" className="text-sm" onChange={e => setMiniatura(e.target.files?.[0] || null)} />
                   </div>
                   <div className="flex flex-col gap-2">
-                    <label className="text-xs font-bold text-[#7c8d74]">GALERÍA (ELEGIR ARCHIVOS)</label>
-                    <input type="file" multiple accept="image/*" className="text-sm cursor-pointer" 
-                      onChange={e => {
-                        if (e.target.files) setArchivosOrdenados(Array.from(e.target.files));
-                      }} />
+                    <label className="text-xs font-bold text-[#7c8d74]">GALERÍA</label>
+                    <input type="file" multiple accept="image/*" className="text-sm" 
+                      onChange={e => { if (e.target.files) setArchivosOrdenados(Array.from(e.target.files)); }} />
                   </div>
                 </div>
 
                 {archivosOrdenados.length > 0 && (
                   <div className="bg-[#1a1c18] p-4 border border-zinc-800 rounded">
-                    <p className="text-[10px] text-[#7c8d74] mb-3 uppercase font-bold tracking-widest">Orden de Galería (Usa las flechas para acomodar)</p>
                     <div className="flex flex-wrap gap-2">
                       {archivosOrdenados.map((file, idx) => (
                         <div key={idx} className="relative group bg-[#2d302a] p-1 border border-zinc-700">
-                          <img src={URL.createObjectURL(file)} className="w-20 h-20 object-cover opacity-70 group-hover:opacity-100 transition-opacity" />
+                          <img src={URL.createObjectURL(file)} className="w-20 h-20 object-cover" />
                           <div className="flex justify-between bg-black/50 p-1">
-                            <button type="button" disabled={idx === 0} onClick={() => moverArchivo(idx, 'izq')} className="text-[10px] disabled:opacity-20 hover:text-blue-400">←</button>
+                            <button type="button" disabled={idx === 0} onClick={() => moverArchivo(idx, 'izq')} className="text-[10px] disabled:opacity-20">←</button>
                             <span className="text-[10px]">{idx + 1}</span>
-                            <button type="button" disabled={idx === archivosOrdenados.length - 1} onClick={() => moverArchivo(idx, 'der')} className="text-[10px] disabled:opacity-20 hover:text-blue-400">→</button>
+                            <button type="button" disabled={idx === archivosOrdenados.length - 1} onClick={() => moverArchivo(idx, 'der')} className="text-[10px] disabled:opacity-20">→</button>
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
-
-                <button disabled={cargando} className="bg-[#4a3424] hover:bg-[#5d432d] text-white py-4 px-8 tracking-widest font-bold transition-all disabled:opacity-50 uppercase text-sm">
-                  {cargando ? 'PROCESANDO...' : 'PUBLICAR PROYECTO FOTO'}
+                <button disabled={cargando} className="bg-[#4a3424] hover:bg-[#5d432d] text-white py-4 font-bold uppercase text-sm">
+                  {cargando ? 'PROCESANDO...' : 'PUBLICAR PROYECTO'}
                 </button>
               </div>
             </form>
           </section>
 
           <section>
-            <h2 className="text-[#7c8d74] font-bold mb-4 uppercase tracking-widest text-sm">Cargar Video de YouTube</h2>
-            <form onSubmit={handlePublicarVideo} className="bg-[#242622] p-8 rounded-sm shadow-2xl border-l-4 border-red-900">
-              <div className="grid gap-6">
-                <input type="text" placeholder="TÍTULO DEL VIDEO" 
-                  className="w-full p-3 bg-[#2d302a] border border-zinc-700 focus:border-[#7c8d74] outline-none transition-colors text-white" 
-                  value={videoTitulo} onChange={e => setVideoTitulo(e.target.value)} />
-                <input type="url" placeholder="URL DE YOUTUBE" 
-                  className="w-full p-3 bg-[#2d302a] border border-zinc-700 focus:border-[#7c8d74] outline-none transition-colors text-white" 
-                  value={videoUrl} onChange={e => setVideoUrl(e.target.value)} />
-                <div className="flex flex-col gap-2 py-4 border-y border-zinc-800">
-                  <label className="text-xs font-bold text-[#7c8d74]">MINIATURA VIDEO</label>
-                  <input type="file" accept="image/*" className="text-sm cursor-pointer" onChange={e => setVideoThumb(e.target.files?.[0] || null)} />
-                </div>
-                <button disabled={cargando} className="bg-red-900 hover:bg-red-800 text-white py-4 px-8 tracking-widest font-bold uppercase text-sm">
-                  {cargando ? 'SUBIENDO...' : 'PUBLICAR VIDEO'}
-                </button>
-              </div>
+            <h2 className="text-[#7c8d74] font-bold mb-4 uppercase tracking-widest text-sm">Cargar Video</h2>
+            <form onSubmit={handlePublicarVideo} className="bg-[#242622] p-8 border-l-4 border-red-900 grid gap-6">
+              <input type="text" placeholder="TÍTULO" className="w-full p-3 bg-[#2d302a] border border-zinc-700 outline-none" value={videoTitulo} onChange={e => setVideoTitulo(e.target.value)} />
+              <input type="url" placeholder="URL YOUTUBE" className="w-full p-3 bg-[#2d302a] border border-zinc-700 outline-none" value={videoUrl} onChange={e => setVideoUrl(e.target.value)} />
+              <input type="file" accept="image/*" onChange={e => setVideoThumb(e.target.files?.[0] || null)} />
+              <button disabled={cargando} className="bg-red-900 hover:bg-red-800 text-white py-4 font-bold uppercase text-sm">PUBLICAR VIDEO</button>
             </form>
           </section>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10 pb-10">
             <div>
-  <h2 className="text-xl font-bold mb-6 text-zinc-400">FOTOS ACTIVAS</h2>
-  <div className="grid gap-2">
-    {proyectos.map((p) => (
-      <div key={p.id} className="flex justify-between items-center bg-[#242622] p-4 border border-zinc-800 text-sm">
-        <span className="truncate mr-4 uppercase">{p.nombre}</span>
-        
-        {/* REVISA QUE ESTÉ EXACTAMENTE ASÍ: */}
-        <button 
-          type="button"
-          onClick={() => handleBorrar(p.id, p.miniatura_url, p.infografias)} 
-          className="text-red-500 hover:text-red-300 font-bold uppercase text-[10px] cursor-pointer p-2"
-        >
-          Borrar
-        </button>
-
+              <h2 className="text-xl font-bold mb-6 text-zinc-400 uppercase text-xs">Fotos Activas</h2>
+              <div className="grid gap-2">
+                {proyectos.map(p => (
+                  <div key={p.id} className="flex justify-between items-center bg-[#242622] p-4 border border-zinc-800 text-sm">
+                    <span className="truncate mr-4">{p.nombre}</span>
+                    <button onClick={() => handleBorrar(p.id, p.miniatura_url, p.infografias)} className="text-red-500 font-bold uppercase text-[10px] cursor-pointer">Borrar</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h2 className="text-xl font-bold mb-6 text-zinc-400 uppercase text-xs">Videos Activos</h2>
+              <div className="grid gap-2">
+                {videos.map(v => (
+                  <div key={v.id} className="flex justify-between items-center bg-[#242622] p-4 border border-zinc-800 text-sm">
+                    <span className="truncate mr-4">{v.titulo}</span>
+                    <button onClick={() => handleBorrarVideo(v.id, v.url_miniatura)} className="text-red-500 font-bold uppercase text-[10px] cursor-pointer">Borrar</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-    ))}
-  </div>
-</div>
+    </div>
+  );
+}
