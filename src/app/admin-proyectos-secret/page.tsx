@@ -203,9 +203,19 @@ export default function AdminPage() {
               <h2 className="text-xl font-bold mb-6 text-zinc-400 uppercase text-xs">Fotos Activas</h2>
               <div className="grid gap-2">
                 {proyectos.map(p => (
-                  <div key={p.id} className="flex justify-between items-center bg-[#242622] p-4 border border-zinc-800 text-sm">
-                    <span className="truncate mr-4">{p.nombre}</span>
-                    <button onClick={() => handleBorrar(p.id, p.miniatura_url, p.infografias)} className="text-red-500 font-bold uppercase text-[10px] cursor-pointer">Borrar</button>
+                  <div key={p.id} className="relative flex justify-between items-center bg-[#242622] p-4 border border-zinc-800 text-sm hover:border-[#7c8d74] transition-colors">
+                    <span className="truncate mr-4 font-medium uppercase">{p.nombre}</span>
+                    <button 
+                      type="button" 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        console.log("Intentando borrar proyecto id:", p.id);
+                        handleBorrar(p.id, p.miniatura_url, p.infografias);
+                      }} 
+                      className="relative z-50 text-red-500 hover:text-white hover:bg-red-600 px-3 py-1 rounded-sm font-bold uppercase text-[10px] cursor-pointer transition-all active:scale-95"
+                    >
+                      Borrar
+                    </button>
                   </div>
                 ))}
               </div>
@@ -214,9 +224,19 @@ export default function AdminPage() {
               <h2 className="text-xl font-bold mb-6 text-zinc-400 uppercase text-xs">Videos Activos</h2>
               <div className="grid gap-2">
                 {videos.map(v => (
-                  <div key={v.id} className="flex justify-between items-center bg-[#242622] p-4 border border-zinc-800 text-sm">
-                    <span className="truncate mr-4">{v.titulo}</span>
-                    <button onClick={() => handleBorrarVideo(v.id, v.url_miniatura)} className="text-red-500 font-bold uppercase text-[10px] cursor-pointer">Borrar</button>
+                  <div key={v.id} className="relative flex justify-between items-center bg-[#242622] p-4 border border-zinc-800 text-sm hover:border-[#7c8d74] transition-colors">
+                    <span className="truncate mr-4 font-medium uppercase">{v.titulo}</span>
+                    <button 
+                      type="button" 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        console.log("Intentando borrar video id:", v.id);
+                        handleBorrarVideo(v.id, v.url_miniatura);
+                      }} 
+                      className="relative z-50 text-red-500 hover:text-white hover:bg-red-600 px-3 py-1 rounded-sm font-bold uppercase text-[10px] cursor-pointer transition-all active:scale-95"
+                    >
+                      Borrar
+                    </button>
                   </div>
                 ))}
               </div>
