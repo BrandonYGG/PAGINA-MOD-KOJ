@@ -4,16 +4,14 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/supabaseClient';
 
 export default function AdminPage() {
-  // Estados para Proyectos (Fotos)
+  // --- ESTADOS PARA PROYECTOS (FOTOS) ---
   const [nombre, setNombre] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [miniatura, setMiniatura] = useState<File | null>(null);
   const [proyectos, setProyectos] = useState<any[]>([]);
-  
-  // Estado para manejar el orden de los archivos antes de subir
   const [archivosOrdenados, setArchivosOrdenados] = useState<File[]>([]);
 
-  // Estados para Videos
+  // --- ESTADOS PARA VIDEOS ---
   const [videoTitulo, setVideoTitulo] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
   const [videoThumb, setVideoThumb] = useState<File | null>(null);
@@ -21,6 +19,7 @@ export default function AdminPage() {
 
   const [cargando, setCargando] = useState(false);
 
+  // --- CARGA DE DATOS AL INICIAR ---
   useEffect(() => {
     fetchProyectos();
     fetchVideos();
@@ -36,6 +35,10 @@ export default function AdminPage() {
     if (data) setVideos(data);
   }
 
+  // --- UTILIDADES ---
+  // Reemplaza caracteres extraños, espacios y paréntesis por guiones bajos
+  const cleanFileName = (name: string) => name.replace(/[^a-zA-Z0-9.]/g, '_');
+
   const moverArchivo = (index: number, direccion: 'izq' | 'der') => {
     const nuevosArchivos = [...archivosOrdenados];
     const file = nuevosArchivos.splice(index, 1)[0];
@@ -44,37 +47,47 @@ export default function AdminPage() {
     setArchivosOrdenados(nuevosArchivos);
   };
 
+  // --- LÓGICA DE PUBLICACIÓN ---
   const handlePublicar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nombre || !miniatura) return alert("Nombre y miniatura son obligatorios");
     setCargando(true);
 
     try {
-      const miniaturaName = `${Date.now()}_thumb_${miniatura.name}`;
-      const { error: thumbError } = await supabase.storage.from('galeria').upload(miniaturaName, miniatura);
+      // 1. Subir Miniatura
+      const miniaturaName = `${Date.now()}_thumb_${cleanFileName(miniatura.name)}`;
+      const { error: thumbError } = await supabase.storage
+        .from('galeria')
+        .upload(miniaturaName, miniatura, { contentType: miniatura.type });
+      
       if (thumbError) throw new Error(`Error en Miniatura: ${thumbError.message}`);
-
       const { data: thumbData } = supabase.storage.from('galeria').getPublicUrl(miniaturaName);
 
+      // 2. Subir Galería (Infografías)
       const infoUrls = [];
       if (archivosOrdenados.length > 0) {
         for (let i = 0; i < archivosOrdenados.length; i++) {
           const file = archivosOrdenados[i];
-          const fileName = `${Date.now()}_info_${file.name}`;
-          const { error: infoError } = await supabase.storage.from('galeria').upload(fileName, file);
+          const fileName = `${Date.now()}_info_${cleanFileName(file.name)}`;
+          const { error: infoError } = await supabase.storage
+            .from('galeria')
+            .upload(fileName, file, { contentType: file.type });
+
           if (infoError) throw new Error(`Error en Galería: ${infoError.message}`);
           const { data } = supabase.storage.from('galeria').getPublicUrl(fileName);
           infoUrls.push(data.publicUrl);
         }
       }
 
+      // 3. Insertar en DB
       const { error: dbError } = await supabase.from('proyectos').insert([
         { nombre, descripcion, miniatura_url: thumbData.publicUrl, infografias: infoUrls }
       ]);
 
       if (dbError) throw dbError;
-      alert("¡Proyecto publicado con éxito!");
-      setNombre(''); setDescripcion(''); setArchivosOrdenados([]);
+
+      alert("¡Proyecto de KOH publicado con éxito!");
+      setNombre(''); setDescripcion(''); setArchivosOrdenados([]); setMiniatura(null);
       fetchProyectos();
     } catch (err: any) {
       alert(err.message || "Error al publicar");
@@ -88,16 +101,21 @@ export default function AdminPage() {
     if (!videoTitulo || !videoUrl || !videoThumb) return alert("Todos los campos del video son obligatorios");
     setCargando(true);
     try {
-      const thumbName = `${Date.now()}_vthumb_${videoThumb.name}`;
-      const { error: uploadError } = await supabase.storage.from('galeria').upload(thumbName, videoThumb);
+      const thumbName = `${Date.now()}_vthumb_${cleanFileName(videoThumb.name)}`;
+      const { error: uploadError } = await supabase.storage
+        .from('galeria')
+        .upload(thumbName, videoThumb, { contentType: videoThumb.type });
+      
       if (uploadError) throw uploadError;
       const { data: thumbData } = supabase.storage.from('galeria').getPublicUrl(thumbName);
+      
       const { error: dbError } = await supabase.from('videos_proyectos').insert([
         { titulo: videoTitulo, youtube_url: videoUrl, url_miniatura: thumbData.publicUrl }
       ]);
+      
       if (dbError) throw dbError;
       alert("¡Video publicado con éxito!");
-      setVideoTitulo(''); setVideoUrl('');
+      setVideoTitulo(''); setVideoUrl(''); setVideoThumb(null);
       fetchVideos();
     } catch (err: any) {
       alert("Error al subir video: " + err.message);
@@ -106,30 +124,54 @@ export default function AdminPage() {
     }
   };
 
+  // --- LÓGICA DE BORRADO (DATABASE + STORAGE) ---
   const handleBorrar = async (id: number, thumbUrl: string, infoUrls: string[]) => {
-    if (!confirm("¿Seguro que deseas eliminar este proyecto?")) return;
+    if (!confirm("¿Seguro que deseas eliminar este proyecto? Los archivos se borrarán de Supabase.")) return;
+    setCargando(true);
     try {
-      const filesToDelete = [thumbUrl.split('/').pop()!];
-      if (infoUrls) infoUrls.forEach(url => {
-          const fileName = url.split('/').pop();
-          if (fileName) filesToDelete.push(fileName);
-      });
-      await supabase.storage.from('galeria').remove(filesToDelete);
+      const getFileName = (url: string) => url.split('/').pop();
+      const filesToDelete: string[] = [];
+
+      const thumbName = getFileName(thumbUrl);
+      if (thumbName) filesToDelete.push(thumbName);
+
+      if (infoUrls && infoUrls.length > 0) {
+        infoUrls.forEach(url => {
+          const name = getFileName(url);
+          if (name) filesToDelete.push(name);
+        });
+      }
+
+      // 1. Borrar archivos físicos del Bucket
+      if (filesToDelete.length > 0) {
+        await supabase.storage.from('galeria').remove(filesToDelete);
+      }
+
+      // 2. Borrar registro de la tabla
       await supabase.from('proyectos').delete().eq('id', id);
+
+      alert("Proyecto e imágenes eliminados correctamente.");
       fetchProyectos();
-    } catch (err) { alert("Error al eliminar"); }
+    } catch (err: any) {
+      alert("Error al eliminar: " + err.message);
+    } finally {
+      setCargando(false);
+    }
   };
 
   const handleBorrarVideo = async (id: string, thumbUrl: string) => {
     if (!confirm("¿Eliminar este video?")) return;
+    setCargando(true);
     try {
-      setCargando(true);
       const fileName = thumbUrl.split('/').pop();
       if (fileName) await supabase.storage.from('galeria').remove([fileName]);
-      const { error } = await supabase.from('videos_proyectos').delete().eq('id', id);
-      if (error) throw error;
+      await supabase.from('videos_proyectos').delete().eq('id', id);
       fetchVideos();
-    } catch (err: any) { alert("Error al eliminar video: " + err.message); } finally { setCargando(false); }
+    } catch (err: any) {
+      alert("Error al eliminar video: " + err.message);
+    } finally {
+      setCargando(false);
+    }
   };
 
   return (
@@ -170,7 +212,7 @@ export default function AdminPage() {
                     <div className="flex flex-wrap gap-2">
                       {archivosOrdenados.map((file, idx) => (
                         <div key={idx} className="relative group bg-[#2d302a] p-1 border border-zinc-700">
-                          <img src={URL.createObjectURL(file)} className="w-20 h-20 object-cover" />
+                          <img src={URL.createObjectURL(file)} className="w-20 h-20 object-cover" alt="preview" />
                           <div className="flex justify-between bg-black/50 p-1">
                             <button type="button" disabled={idx === 0} onClick={() => moverArchivo(idx, 'izq')} className="text-[10px] disabled:opacity-20">←</button>
                             <span className="text-[10px]">{idx + 1}</span>
@@ -194,7 +236,9 @@ export default function AdminPage() {
               <input type="text" placeholder="TÍTULO" className="w-full p-3 bg-[#2d302a] border border-zinc-700 outline-none" value={videoTitulo} onChange={e => setVideoTitulo(e.target.value)} />
               <input type="url" placeholder="URL YOUTUBE" className="w-full p-3 bg-[#2d302a] border border-zinc-700 outline-none" value={videoUrl} onChange={e => setVideoUrl(e.target.value)} />
               <input type="file" accept="image/*" onChange={e => setVideoThumb(e.target.files?.[0] || null)} />
-              <button disabled={cargando} className="bg-red-900 hover:bg-red-800 text-white py-4 font-bold uppercase text-sm">PUBLICAR VIDEO</button>
+              <button disabled={cargando} className="bg-red-900 hover:bg-red-800 text-white py-4 font-bold uppercase text-sm">
+                {cargando ? 'PROCESANDO...' : 'PUBLICAR VIDEO'}
+              </button>
             </form>
           </section>
 
@@ -209,10 +253,9 @@ export default function AdminPage() {
                       type="button" 
                       onClick={(e) => {
                         e.preventDefault();
-                        console.log("Intentando borrar proyecto id:", p.id);
                         handleBorrar(p.id, p.miniatura_url, p.infografias);
                       }} 
-                      className="relative z-50 text-red-500 hover:text-white hover:bg-red-600 px-3 py-1 rounded-sm font-bold uppercase text-[10px] cursor-pointer transition-all active:scale-95"
+                      className="relative z-50 text-red-500 hover:text-white hover:bg-red-600 px-3 py-1 rounded-sm font-bold uppercase text-[10px] cursor-pointer transition-all"
                     >
                       Borrar
                     </button>
@@ -230,10 +273,9 @@ export default function AdminPage() {
                       type="button" 
                       onClick={(e) => {
                         e.preventDefault();
-                        console.log("Intentando borrar video id:", v.id);
                         handleBorrarVideo(v.id, v.url_miniatura);
                       }} 
-                      className="relative z-50 text-red-500 hover:text-white hover:bg-red-600 px-3 py-1 rounded-sm font-bold uppercase text-[10px] cursor-pointer transition-all active:scale-95"
+                      className="relative z-50 text-red-500 hover:text-white hover:bg-red-600 px-3 py-1 rounded-sm font-bold uppercase text-[10px] cursor-pointer transition-all"
                     >
                       Borrar
                     </button>
