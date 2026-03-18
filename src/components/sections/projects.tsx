@@ -12,7 +12,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Eye, ImageIcon, Loader2 } from 'lucide-react';
+import { Eye, Loader2 } from 'lucide-react';
 import { ScrollArea } from '../ui/scroll-area';
 import {
   Carousel,
@@ -22,8 +22,7 @@ import {
   CarouselPrevious,
 } from '@/components/ui/carousel';
 
-// Importamos tus 9 proyectos locales
-import projectsData from '@/lib/projects-data.json';
+// Nota: He quitado el import de projectsData para que no te marque error de archivo no usado
 
 interface Project {
   id: string;
@@ -31,7 +30,6 @@ interface Project {
   descripcion: string;
   miniatura_url: string;
   infografias: string[];
-  isLocal?: boolean; // Para saber si viene del JSON o de Supabase
 }
 
 export default function Projects() {
@@ -43,17 +41,8 @@ export default function Projects() {
   useEffect(() => {
     async function fetchAllProjects() {
       try {
-        // 1. Preparamos los proyectos locales del JSON
-        const locales: Project[] = projectsData.map((p: any) => ({
-          id: p.id,
-          nombre: p.title, // Adaptamos 'title' a 'nombre'
-          descripcion: p.description,
-          miniatura_url: p.beforeImageUrl, // Adaptamos URL local
-          infografias: p.gallery,
-          isLocal: true
-        }));
-
-        // 2. Traemos los proyectos de Supabase
+        setLoading(true);
+        // 1. Traemos SOLO los proyectos de Supabase
         const { data: nube, error } = await supabase
           .from('proyectos')
           .select('*')
@@ -61,10 +50,10 @@ export default function Projects() {
 
         if (error) throw error;
 
-        // 3. Los juntamos (Primero los de la nube, luego los locales)
-        setProjects([...(nube || []), ...locales]);
+        // 2. Seteamos solo lo que viene de la nube
+        setProjects(nube || []);
       } catch (err) {
-        console.error("Error al cargar:", err);
+        console.error("Error al cargar proyectos de Supabase:", err);
       } finally {
         setLoading(false);
       }
@@ -99,30 +88,35 @@ export default function Projects() {
 
         <Dialog onOpenChange={(isOpen) => !isOpen && setSelectedProject(null)}>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-            {projects.map((project) => (
-              <DialogTrigger asChild key={project.id} onClick={() => setSelectedProject(project)}>
-                <div className="block group cursor-pointer">
-                  <Card className="overflow-hidden border-none shadow-lg h-full flex flex-col bg-[#242622]">
-                    <div className="relative aspect-video overflow-hidden">
-                      <Image
-                        src={project.miniatura_url}
-                        alt={project.nombre}
-                        fill
-                        className="object-cover transition-transform duration-500 group-hover:scale-110"
-                        unoptimized={project.isLocal} // No optimizar si es ruta local de carpeta
-                      />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <Eye className="h-8 w-8 text-white" />
+            {projects.length > 0 ? (
+              projects.map((project) => (
+                <DialogTrigger asChild key={project.id} onClick={() => setSelectedProject(project)}>
+                  <div className="block group cursor-pointer">
+                    <Card className="overflow-hidden border-none shadow-lg h-full flex flex-col bg-[#242622]">
+                      <div className="relative aspect-video overflow-hidden">
+                        <Image
+                          src={project.miniatura_url}
+                          alt={project.nombre}
+                          fill
+                          className="object-cover transition-transform duration-500 group-hover:scale-110"
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <Eye className="h-8 w-8 text-white" />
+                        </div>
                       </div>
-                    </div>
-                    <CardHeader className="p-4">
-                      <CardTitle className="text-[#7c8d74] text-base uppercase tracking-wider">{project.nombre}</CardTitle>
-                      <CardDescription className="text-zinc-400 text-xs line-clamp-2">{project.descripcion}</CardDescription>
-                    </CardHeader>
-                  </Card>
-                </div>
-              </DialogTrigger>
-            ))}
+                      <CardHeader className="p-4">
+                        <CardTitle className="text-[#7c8d74] text-base uppercase tracking-wider">{project.nombre}</CardTitle>
+                        <CardDescription className="text-zinc-400 text-xs line-clamp-2">{project.descripcion}</CardDescription>
+                      </CardHeader>
+                    </Card>
+                  </div>
+                </DialogTrigger>
+              ))
+            ) : (
+              <div className="col-span-full text-center py-10 text-zinc-500">
+                No hay proyectos disponibles en la base de datos.
+              </div>
+            )}
           </div>
 
           {selectedProject && (
@@ -134,15 +128,28 @@ export default function Projects() {
               <ScrollArea className="flex-grow mt-4">
                 <Carousel className="w-full">
                   <CarouselContent>
-                    {selectedProject.infografias.map((img, i) => (
-                      <CarouselItem key={i}>
-                        <div onWheel={handleWheel} className="relative aspect-video w-full overflow-hidden rounded-lg">
-                          <div style={{ transform: `scale(${zoom})`, transition: 'transform 0.1s' }} className="relative w-full h-full">
-                            <Image src={img} alt="Vista" fill className="object-contain" unoptimized={selectedProject.isLocal} />
+                    {selectedProject.infografias && selectedProject.infografias.length > 0 ? (
+                      selectedProject.infografias.map((img, i) => (
+                        <CarouselItem key={i}>
+                          <div onWheel={handleWheel} className="relative aspect-video w-full overflow-hidden rounded-lg">
+                            <div style={{ transform: `scale(${zoom})`, transition: 'transform 0.1s' }} className="relative w-full h-full">
+                              <Image 
+                                src={img} 
+                                alt={`Vista ${i + 1}`} 
+                                fill 
+                                className="object-contain" 
+                              />
+                            </div>
                           </div>
+                        </CarouselItem>
+                      ))
+                    ) : (
+                      <CarouselItem>
+                        <div className="aspect-video w-full flex items-center justify-center bg-zinc-900 rounded-lg">
+                          <p className="text-zinc-500 italic">Este proyecto no tiene infografías adicionales.</p>
                         </div>
                       </CarouselItem>
-                    ))}
+                    )}
                   </CarouselContent>
                   <CarouselPrevious className="left-2 bg-black/50" />
                   <CarouselNext className="right-2 bg-black/50" />
