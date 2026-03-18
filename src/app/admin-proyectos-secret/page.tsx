@@ -2,16 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/supabaseClient';
+import { Trash2, Plus, Video, Image as ImageIcon, HardHat } from 'lucide-react';
 
 export default function AdminPage() {
-  // --- ESTADOS PARA PROYECTOS (FOTOS) ---
   const [nombre, setNombre] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [miniatura, setMiniatura] = useState<File | null>(null);
   const [proyectos, setProyectos] = useState<any[]>([]);
   const [archivosOrdenados, setArchivosOrdenados] = useState<File[]>([]);
 
-  // --- ESTADOS PARA VIDEOS ---
   const [videoTitulo, setVideoTitulo] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
   const [videoThumb, setVideoThumb] = useState<File | null>(null);
@@ -19,7 +18,6 @@ export default function AdminPage() {
 
   const [cargando, setCargando] = useState(false);
 
-  // --- CARGA DE DATOS AL INICIAR ---
   useEffect(() => {
     fetchProyectos();
     fetchVideos();
@@ -35,8 +33,6 @@ export default function AdminPage() {
     if (data) setVideos(data);
   }
 
-  // --- UTILIDADES ---
-  // Reemplaza caracteres extraños, espacios y paréntesis por guiones bajos
   const cleanFileName = (name: string) => name.replace(/[^a-zA-Z0-9.]/g, '_');
 
   const moverArchivo = (index: number, direccion: 'izq' | 'der') => {
@@ -47,243 +43,201 @@ export default function AdminPage() {
     setArchivosOrdenados(nuevosArchivos);
   };
 
-  // --- LÓGICA DE PUBLICACIÓN ---
   const handlePublicar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nombre || !miniatura) return alert("Nombre y miniatura son obligatorios");
     setCargando(true);
-
     try {
-      // 1. Subir Miniatura
       const miniaturaName = `${Date.now()}_thumb_${cleanFileName(miniatura.name)}`;
-      const { error: thumbError } = await supabase.storage
-        .from('galeria')
-        .upload(miniaturaName, miniatura, { contentType: miniatura.type });
-      
-      if (thumbError) throw new Error(`Error en Miniatura: ${thumbError.message}`);
+      const { error: thumbError } = await supabase.storage.from('galeria').upload(miniaturaName, miniatura);
+      if (thumbError) throw thumbError;
       const { data: thumbData } = supabase.storage.from('galeria').getPublicUrl(miniaturaName);
 
-      // 2. Subir Galería (Infografías)
       const infoUrls = [];
-      if (archivosOrdenados.length > 0) {
-        for (let i = 0; i < archivosOrdenados.length; i++) {
-          const file = archivosOrdenados[i];
-          const fileName = `${Date.now()}_info_${cleanFileName(file.name)}`;
-          const { error: infoError } = await supabase.storage
-            .from('galeria')
-            .upload(fileName, file, { contentType: file.type });
-
-          if (infoError) throw new Error(`Error en Galería: ${infoError.message}`);
-          const { data } = supabase.storage.from('galeria').getPublicUrl(fileName);
-          infoUrls.push(data.publicUrl);
-        }
+      for (const file of archivosOrdenados) {
+        const fileName = `${Date.now()}_info_${cleanFileName(file.name)}`;
+        await supabase.storage.from('galeria').upload(fileName, file);
+        const { data } = supabase.storage.from('galeria').getPublicUrl(fileName);
+        infoUrls.push(data.publicUrl);
       }
 
-      // 3. Insertar en DB
-      const { error: dbError } = await supabase.from('proyectos').insert([
-        { nombre, descripcion, miniatura_url: thumbData.publicUrl, infografias: infoUrls }
-      ]);
-
-      if (dbError) throw dbError;
-
-      alert("¡Proyecto de KOH publicado con éxito!");
+      await supabase.from('proyectos').insert([{ nombre, descripcion, miniatura_url: thumbData.publicUrl, infografias: infoUrls }]);
+      alert("¡Proyecto KOH publicado!");
       setNombre(''); setDescripcion(''); setArchivosOrdenados([]); setMiniatura(null);
       fetchProyectos();
-    } catch (err: any) {
-      alert(err.message || "Error al publicar");
-    } finally {
-      setCargando(false);
-    }
+    } catch (err: any) { alert(err.message); } finally { setCargando(false); }
   };
 
   const handlePublicarVideo = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!videoTitulo || !videoUrl || !videoThumb) return alert("Todos los campos del video son obligatorios");
+    if (!videoTitulo || !videoUrl || !videoThumb) return alert("Campos obligatorios");
     setCargando(true);
     try {
       const thumbName = `${Date.now()}_vthumb_${cleanFileName(videoThumb.name)}`;
-      const { error: uploadError } = await supabase.storage
-        .from('galeria')
-        .upload(thumbName, videoThumb, { contentType: videoThumb.type });
-      
-      if (uploadError) throw uploadError;
+      await supabase.storage.from('galeria').upload(thumbName, videoThumb);
       const { data: thumbData } = supabase.storage.from('galeria').getPublicUrl(thumbName);
-      
-      const { error: dbError } = await supabase.from('videos_proyectos').insert([
-        { titulo: videoTitulo, youtube_url: videoUrl, url_miniatura: thumbData.publicUrl }
-      ]);
-      
-      if (dbError) throw dbError;
-      alert("¡Video publicado con éxito!");
+      await supabase.from('videos_proyectos').insert([{ titulo: videoTitulo, youtube_url: videoUrl, url_miniatura: thumbData.publicUrl }]);
       setVideoTitulo(''); setVideoUrl(''); setVideoThumb(null);
       fetchVideos();
-    } catch (err: any) {
-      alert("Error al subir video: " + err.message);
-    } finally {
-      setCargando(false);
-    }
+    } catch (err: any) { alert(err.message); } finally { setCargando(false); }
   };
 
-  // --- LÓGICA DE BORRADO (DATABASE + STORAGE) ---
   const handleBorrar = async (id: number, thumbUrl: string, infoUrls: string[]) => {
-    if (!confirm("¿Seguro que deseas eliminar este proyecto? Los archivos se borrarán de Supabase.")) return;
-    setCargando(true);
+    if (!confirm("¿Eliminar proyecto?")) return;
     try {
       const getFileName = (url: string) => url.split('/').pop();
-      const filesToDelete: string[] = [];
-
-      const thumbName = getFileName(thumbUrl);
-      if (thumbName) filesToDelete.push(thumbName);
-
-      if (infoUrls && infoUrls.length > 0) {
-        infoUrls.forEach(url => {
-          const name = getFileName(url);
-          if (name) filesToDelete.push(name);
-        });
-      }
-
-      // 1. Borrar archivos físicos del Bucket
-      if (filesToDelete.length > 0) {
-        await supabase.storage.from('galeria').remove(filesToDelete);
-      }
-
-      // 2. Borrar registro de la tabla
+      const files = [getFileName(thumbUrl), ...(infoUrls?.map(getFileName) || [])].filter(Boolean) as string[];
+      if (files.length) await supabase.storage.from('galeria').remove(files);
       await supabase.from('proyectos').delete().eq('id', id);
-
-      alert("Proyecto e imágenes eliminados correctamente.");
       fetchProyectos();
-    } catch (err: any) {
-      alert("Error al eliminar: " + err.message);
-    } finally {
-      setCargando(false);
-    }
+    } catch (err: any) { alert(err.message); }
   };
 
   const handleBorrarVideo = async (id: string, thumbUrl: string) => {
-    if (!confirm("¿Eliminar este video?")) return;
-    setCargando(true);
+    if (!confirm("¿Eliminar video?")) return;
     try {
       const fileName = thumbUrl.split('/').pop();
       if (fileName) await supabase.storage.from('galeria').remove([fileName]);
       await supabase.from('videos_proyectos').delete().eq('id', id);
       fetchVideos();
-    } catch (err: any) {
-      alert("Error al eliminar video: " + err.message);
-    } finally {
-      setCargando(false);
-    }
+    } catch (err: any) { alert(err.message); }
   };
 
   return (
-    <div className="p-8 bg-[#1a1c18] min-h-screen text-white font-sans">
-      <div className="max-w-4xl mx-auto">
-        <header className="flex items-center justify-between mb-10 border-b border-[#7c8d74] pb-4">
-          <h1 className="text-2xl font-light tracking-widest uppercase text-[#7c8d74]">
-            Panel <span className="font-bold text-white">Admin</span>
-          </h1>
-          <span className="text-xs text-zinc-500 uppercase tracking-tighter">Construcciones Avanzadas KOH</span>
+    <div className="p-4 md:p-12 bg-[#141512] min-h-screen text-zinc-100 selection:bg-[#7c8d74]">
+      <div className="max-w-6xl mx-auto">
+        
+        {/* HEADER */}
+        <header className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4 border-b border-zinc-800 pb-8">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <HardHat className="text-[#7c8d74] h-5 w-5" />
+              <span className="text-[10px] tracking-[0.3em] text-zinc-500 uppercase font-bold">Consola de Administración</span>
+            </div>
+            <h1 className="text-4xl font-black uppercase tracking-tighter">
+              KOH <span className="text-[#7c8d74]">PORTFOLIO</span>
+            </h1>
+          </div>
+          <div className="text-right">
+             <p className="text-xs text-zinc-500 font-mono">v2.0.26 — Supabase Cloud</p>
+          </div>
         </header>
 
-        <div className="grid grid-cols-1 gap-16">
-          <section>
-            <h2 className="text-[#7c8d74] font-bold mb-4 uppercase tracking-widest text-sm">Cargar Proyectos Fotográficos</h2>
-            <form onSubmit={handlePublicar} className="bg-[#242622] p-8 rounded-sm shadow-2xl border-l-4 border-[#4a3424]">
-              <div className="grid gap-6">
-                <input type="text" placeholder="NOMBRE DEL PROYECTO" 
-                  className="w-full p-3 bg-[#2d302a] border border-zinc-700 focus:border-[#7c8d74] outline-none" 
-                  value={nombre} onChange={e => setNombre(e.target.value)} />
-                <textarea placeholder="DESCRIPCIÓN TÉCNICA" rows={3}
-                  className="w-full p-3 bg-[#2d302a] border border-zinc-700 focus:border-[#7c8d74] outline-none"
-                  value={descripcion} onChange={e => setDescripcion(e.target.value)} />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4 border-y border-zinc-800">
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-bold text-[#7c8d74]">IMAGEN PORTADA</label>
-                    <input type="file" accept="image/*" className="text-sm" onChange={e => setMiniatura(e.target.files?.[0] || null)} />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+          
+          {/* COLUMNA IZQUIERDA: FORMULARIOS */}
+          <div className="lg:col-span-7 space-y-12">
+            
+            {/* FORM PROYECTOS */}
+            <section className="bg-[#1c1e1a] border border-zinc-800 p-8 rounded-xl shadow-2xl">
+              <div className="flex items-center gap-3 mb-6">
+                <ImageIcon className="text-[#7c8d74] h-5 w-5" />
+                <h2 className="text-sm font-black uppercase tracking-widest text-[#7c8d74]">Cargar Obra Fotográfica</h2>
+              </div>
+              
+              <form onSubmit={handlePublicar} className="space-y-6">
+                <input 
+                  type="text" placeholder="NOMBRE DEL PROYECTO" 
+                  className="w-full bg-[#141512] border-zinc-800 border p-4 text-sm outline-none focus:border-[#7c8d74] transition-colors"
+                  value={nombre} onChange={e => setNombre(e.target.value)}
+                />
+                <textarea 
+                  placeholder="ESPECIFICACIONES TÉCNICAS Y DESCRIPCIÓN" rows={4}
+                  className="w-full bg-[#141512] border-zinc-800 border p-4 text-sm outline-none focus:border-[#7c8d74] transition-colors"
+                  value={descripcion} onChange={e => setDescripcion(e.target.value)}
+                />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 border border-zinc-800 bg-[#141512]">
+                    <label className="text-[10px] block mb-2 text-zinc-500 font-bold uppercase">Portada (Principal)</label>
+                    <input type="file" accept="image/*" className="text-[10px] file:bg-[#7c8d74] file:text-white file:border-none file:px-3 file:py-1 file:rounded-full file:mr-4 file:cursor-pointer" onChange={e => setMiniatura(e.target.files?.[0] || null)} />
                   </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-bold text-[#7c8d74]">GALERÍA</label>
-                    <input type="file" multiple accept="image/*" className="text-sm" 
+                  <div className="p-4 border border-zinc-800 bg-[#141512]">
+                    <label className="text-[10px] block mb-2 text-zinc-500 font-bold uppercase">Galería (Múltiple)</label>
+                    <input type="file" multiple accept="image/*" className="text-[10px] file:bg-zinc-700 file:text-white file:border-none file:px-3 file:py-1 file:rounded-full file:mr-4 file:cursor-pointer" 
                       onChange={e => { if (e.target.files) setArchivosOrdenados(Array.from(e.target.files)); }} />
                   </div>
                 </div>
 
                 {archivosOrdenados.length > 0 && (
-                  <div className="bg-[#1a1c18] p-4 border border-zinc-800 rounded">
-                    <div className="flex flex-wrap gap-2">
-                      {archivosOrdenados.map((file, idx) => (
-                        <div key={idx} className="relative group bg-[#2d302a] p-1 border border-zinc-700">
-                          <img src={URL.createObjectURL(file)} className="w-20 h-20 object-cover" alt="preview" />
-                          <div className="flex justify-between bg-black/50 p-1">
-                            <button type="button" disabled={idx === 0} onClick={() => moverArchivo(idx, 'izq')} className="text-[10px] disabled:opacity-20">←</button>
-                            <span className="text-[10px]">{idx + 1}</span>
-                            <button type="button" disabled={idx === archivosOrdenados.length - 1} onClick={() => moverArchivo(idx, 'der')} className="text-[10px] disabled:opacity-20">→</button>
-                          </div>
+                  <div className="flex flex-wrap gap-3 p-4 bg-[#141512] border border-zinc-800">
+                    {archivosOrdenados.map((file, idx) => (
+                      <div key={idx} className="relative w-16 h-16 border border-zinc-700">
+                        <img src={URL.createObjectURL(file)} className="w-full h-full object-cover" alt="prev" />
+                        <div className="absolute inset-x-0 bottom-0 bg-black/80 flex justify-between text-[8px] px-1">
+                          <button type="button" onClick={() => moverArchivo(idx, 'izq')} disabled={idx === 0}>←</button>
+                          <span>{idx + 1}</span>
+                          <button type="button" onClick={() => moverArchivo(idx, 'der')} disabled={idx === archivosOrdenados.length - 1}>→</button>
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))}
                   </div>
                 )}
-                <button disabled={cargando} className="bg-[#4a3424] hover:bg-[#5d432d] text-white py-4 font-bold uppercase text-sm">
-                  {cargando ? 'PROCESANDO...' : 'PUBLICAR PROYECTO'}
+
+                <button disabled={cargando} className="w-full py-4 bg-[#7c8d74] hover:bg-[#6b7a64] text-white text-xs font-black uppercase tracking-[0.2em] transition-all disabled:opacity-50">
+                  {cargando ? 'Sincronizando...' : 'REGISTRAR PROYECTO'}
                 </button>
+              </form>
+            </section>
+
+            {/* FORM VIDEOS */}
+            <section className="bg-[#1c1e1a] border border-zinc-800 p-8 rounded-xl">
+              <div className="flex items-center gap-3 mb-6">
+                <Video className="text-red-800 h-5 w-5" />
+                <h2 className="text-sm font-black uppercase tracking-widest text-red-800">Cargar Recorrido Virtual</h2>
               </div>
-            </form>
-          </section>
+              <form onSubmit={handlePublicarVideo} className="space-y-4">
+                <input type="text" placeholder="TÍTULO DEL VIDEO" className="w-full bg-[#141512] border-zinc-800 border p-4 text-sm outline-none" value={videoTitulo} onChange={e => setVideoTitulo(e.target.value)} />
+                <input type="url" placeholder="LINK DE YOUTUBE" className="w-full bg-[#141512] border-zinc-800 border p-4 text-sm outline-none" value={videoUrl} onChange={e => setVideoUrl(e.target.value)} />
+                <div className="p-4 border border-zinc-800 bg-[#141512]">
+                   <label className="text-[10px] block mb-2 text-zinc-500 font-bold uppercase">Miniatura del Video</label>
+                   <input type="file" accept="image/*" className="text-[10px]" onChange={e => setVideoThumb(e.target.files?.[0] || null)} />
+                </div>
+                <button disabled={cargando} className="w-full py-4 bg-red-900/20 hover:bg-red-900 border border-red-900 text-red-500 hover:text-white text-xs font-black uppercase tracking-[0.2em] transition-all">
+                   PUBLICAR VIDEO
+                </button>
+              </form>
+            </section>
+          </div>
 
-          <section>
-            <h2 className="text-[#7c8d74] font-bold mb-4 uppercase tracking-widest text-sm">Cargar Video</h2>
-            <form onSubmit={handlePublicarVideo} className="bg-[#242622] p-8 border-l-4 border-red-900 grid gap-6">
-              <input type="text" placeholder="TÍTULO" className="w-full p-3 bg-[#2d302a] border border-zinc-700 outline-none" value={videoTitulo} onChange={e => setVideoTitulo(e.target.value)} />
-              <input type="url" placeholder="URL YOUTUBE" className="w-full p-3 bg-[#2d302a] border border-zinc-700 outline-none" value={videoUrl} onChange={e => setVideoUrl(e.target.value)} />
-              <input type="file" accept="image/*" onChange={e => setVideoThumb(e.target.files?.[0] || null)} />
-              <button disabled={cargando} className="bg-red-900 hover:bg-red-800 text-white py-4 font-bold uppercase text-sm">
-                {cargando ? 'PROCESANDO...' : 'PUBLICAR VIDEO'}
-              </button>
-            </form>
-          </section>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 pb-10">
+          {/* COLUMNA DERECHA: LISTADOS */}
+          <div className="lg:col-span-5 space-y-8">
             <div>
-              <h2 className="text-xl font-bold mb-6 text-zinc-400 uppercase text-xs">Fotos Activas</h2>
-              <div className="grid gap-2">
+              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-6 flex items-center gap-2">
+                <span className="w-8 h-px bg-zinc-800"></span> Proyectos en línea
+              </h3>
+              <div className="space-y-3">
                 {proyectos.map(p => (
-                  <div key={p.id} className="relative flex justify-between items-center bg-[#242622] p-4 border border-zinc-800 text-sm hover:border-[#7c8d74] transition-colors">
-                    <span className="truncate mr-4 font-medium uppercase">{p.nombre}</span>
-                    <button 
-                      type="button" 
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleBorrar(p.id, p.miniatura_url, p.infografias);
-                      }} 
-                      className="relative z-50 text-red-500 hover:text-white hover:bg-red-600 px-3 py-1 rounded-sm font-bold uppercase text-[10px] cursor-pointer transition-all"
-                    >
-                      Borrar
+                  <div key={p.id} className="group flex items-center justify-between bg-[#1c1e1a] p-4 border border-zinc-800 hover:border-zinc-600 transition-all">
+                    <div className="flex items-center gap-4">
+                       <img src={p.miniatura_url} className="w-10 h-10 object-cover rounded shadow-lg" alt="" />
+                       <span className="text-xs font-bold uppercase tracking-tight truncate w-32 md:w-48">{p.nombre}</span>
+                    </div>
+                    <button onClick={() => handleBorrar(p.id, p.miniatura_url, p.infografias)} className="opacity-0 group-hover:opacity-100 p-2 text-zinc-500 hover:text-red-500 transition-all">
+                      <Trash2 h-4 w-4 />
                     </button>
                   </div>
                 ))}
               </div>
             </div>
+
             <div>
-              <h2 className="text-xl font-bold mb-6 text-zinc-400 uppercase text-xs">Videos Activos</h2>
-              <div className="grid gap-2">
+              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-6 flex items-center gap-2">
+                <span className="w-8 h-px bg-zinc-800"></span> Videos en línea
+              </h3>
+              <div className="space-y-3">
                 {videos.map(v => (
-                  <div key={v.id} className="relative flex justify-between items-center bg-[#242622] p-4 border border-zinc-800 text-sm hover:border-[#7c8d74] transition-colors">
-                    <span className="truncate mr-4 font-medium uppercase">{v.titulo}</span>
-                    <button 
-                      type="button" 
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleBorrarVideo(v.id, v.url_miniatura);
-                      }} 
-                      className="relative z-50 text-red-500 hover:text-white hover:bg-red-600 px-3 py-1 rounded-sm font-bold uppercase text-[10px] cursor-pointer transition-all"
-                    >
-                      Borrar
+                  <div key={v.id} className="group flex items-center justify-between bg-[#1c1e1a] p-4 border border-zinc-800 hover:border-zinc-600 transition-all">
+                    <span className="text-xs font-bold uppercase truncate w-40">{v.titulo}</span>
+                    <button onClick={() => handleBorrarVideo(v.id, v.url_miniatura)} className="opacity-0 group-hover:opacity-100 p-2 text-zinc-500 hover:text-red-500 transition-all">
+                      <Trash2 h-4 w-4 />
                     </button>
                   </div>
                 ))}
               </div>
             </div>
           </div>
+
         </div>
       </div>
     </div>
