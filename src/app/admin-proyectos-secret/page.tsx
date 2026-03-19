@@ -2,20 +2,24 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/supabaseClient';
-import { Trash2, Plus, Video, Image as ImageIcon, HardHat } from 'lucide-react';
+import { Trash2, Plus, Video, Image as ImageIcon, HardHat, X, Edit2, AlertCircle } from 'lucide-react';
 
 export default function AdminPage() {
   const [nombre, setNombre] = useState('');
   const [descripcion, setDescripcion] = useState('');
+  const [esVoluntario, setEsVoluntario] = useState(false);
   const [miniatura, setMiniatura] = useState<File | null>(null);
   const [proyectos, setProyectos] = useState<any[]>([]);
   const [archivosOrdenados, setArchivosOrdenados] = useState<File[]>([]);
+  
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [urlsExistentes, setUrlsExistentes] = useState<string[]>([]);
+  const [miniaturaExistente, setMiniaturaExistente] = useState('');
 
   const [videoTitulo, setVideoTitulo] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
   const [videoThumb, setVideoThumb] = useState<File | null>(null);
   const [videos, setVideos] = useState<any[]>([]);
-
   const [cargando, setCargando] = useState(false);
 
   useEffect(() => {
@@ -35,55 +39,71 @@ export default function AdminPage() {
 
   const cleanFileName = (name: string) => name.replace(/[^a-zA-Z0-9.]/g, '_');
 
-  const moverArchivo = (index: number, direccion: 'izq' | 'der') => {
-    const nuevosArchivos = [...archivosOrdenados];
-    const file = nuevosArchivos.splice(index, 1)[0];
-    const nuevaPos = direccion === 'izq' ? index - 1 : index + 1;
-    nuevosArchivos.splice(nuevaPos, 0, file);
-    setArchivosOrdenados(nuevosArchivos);
+  const prepararEdicion = (p: any) => {
+    setEditandoId(p.id);
+    setNombre(p.nombre);
+    setDescripcion(p.descripcion);
+    setEsVoluntario(p.es_voluntario || false);
+    setMiniaturaExistente(p.miniatura_url);
+    setUrlsExistentes(p.infografias || []);
+    setArchivosOrdenados([]);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelarEdicion = () => {
+    setEditandoId(null);
+    setNombre('');
+    setDescripcion('');
+    setEsVoluntario(false);
+    setMiniaturaExistente('');
+    setUrlsExistentes([]);
+    setArchivosOrdenados([]);
   };
 
   const handlePublicar = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nombre || !miniatura) return alert("Nombre y miniatura son obligatorios");
+    if (!nombre) return alert("Nombre obligatorio");
     setCargando(true);
     try {
-      const miniaturaName = `${Date.now()}_thumb_${cleanFileName(miniatura.name)}`;
-      const { error: thumbError } = await supabase.storage.from('galeria').upload(miniaturaName, miniatura);
-      if (thumbError) throw thumbError;
-      const { data: thumbData } = supabase.storage.from('galeria').getPublicUrl(miniaturaName);
+      let urlFinalMiniatura = miniaturaExistente;
+      if (miniatura) {
+        const minName = `${Date.now()}_thumb_${cleanFileName(miniatura.name)}`;
+        await supabase.storage.from('galeria').upload(minName, miniatura);
+        const { data } = supabase.storage.from('galeria').getPublicUrl(minName);
+        urlFinalMiniatura = data.publicUrl;
+      }
 
-      const infoUrls = [];
+      const nuevasUrls = [];
       for (const file of archivosOrdenados) {
         const fileName = `${Date.now()}_info_${cleanFileName(file.name)}`;
         await supabase.storage.from('galeria').upload(fileName, file);
         const { data } = supabase.storage.from('galeria').getPublicUrl(fileName);
-        infoUrls.push(data.publicUrl);
+        nuevasUrls.push(data.publicUrl);
       }
 
-      await supabase.from('proyectos').insert([{ nombre, descripcion, miniatura_url: thumbData.publicUrl, infografias: infoUrls }]);
-      alert("¡Proyecto KOH publicado!");
-      setNombre(''); setDescripcion(''); setArchivosOrdenados([]); setMiniatura(null);
+      const payload = {
+        nombre,
+        descripcion,
+        es_voluntario: esVoluntario,
+        miniatura_url: urlFinalMiniatura,
+        infografias: [...urlsExistentes, ...nuevasUrls]
+      };
+
+      if (editandoId) {
+        await supabase.from('proyectos').update(payload).eq('id', editandoId);
+      } else {
+        if (!miniatura) throw new Error("Miniatura obligatoria");
+        await supabase.from('proyectos').insert([payload]);
+      }
+
+      alert("¡Éxito!");
+      cancelarEdicion();
       fetchProyectos();
     } catch (err: any) { alert(err.message); } finally { setCargando(false); }
   };
 
-  const handlePublicarVideo = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!videoTitulo || !videoUrl || !videoThumb) return alert("Campos obligatorios");
-    setCargando(true);
-    try {
-      const thumbName = `${Date.now()}_vthumb_${cleanFileName(videoThumb.name)}`;
-      await supabase.storage.from('galeria').upload(thumbName, videoThumb);
-      const { data: thumbData } = supabase.storage.from('galeria').getPublicUrl(thumbName);
-      await supabase.from('videos_proyectos').insert([{ titulo: videoTitulo, youtube_url: videoUrl, url_miniatura: thumbData.publicUrl }]);
-      setVideoTitulo(''); setVideoUrl(''); setVideoThumb(null);
-      fetchVideos();
-    } catch (err: any) { alert(err.message); } finally { setCargando(false); }
-  };
-
   const handleBorrar = async (id: number, thumbUrl: string, infoUrls: string[]) => {
-    if (!confirm("¿Eliminar proyecto?")) return;
+    if (!confirm("¿Eliminar?")) return;
     try {
       const getFileName = (url: string) => url.split('/').pop();
       const files = [getFileName(thumbUrl), ...(infoUrls?.map(getFileName) || [])].filter(Boolean) as string[];
@@ -93,151 +113,70 @@ export default function AdminPage() {
     } catch (err: any) { alert(err.message); }
   };
 
-  const handleBorrarVideo = async (id: string, thumbUrl: string) => {
-    if (!confirm("¿Eliminar video?")) return;
-    try {
-      const fileName = thumbUrl.split('/').pop();
-      if (fileName) await supabase.storage.from('galeria').remove([fileName]);
-      await supabase.from('videos_proyectos').delete().eq('id', id);
-      fetchVideos();
-    } catch (err: any) { alert(err.message); }
-  };
-
   return (
-    <div className="p-4 md:p-12 bg-[#141512] min-h-screen text-zinc-100 selection:bg-[#7c8d74]">
+    <div className="p-4 md:p-12 bg-[#141512] min-h-screen text-zinc-100">
       <div className="max-w-6xl mx-auto">
-        
-        {/* HEADER */}
-        <header className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4 border-b border-zinc-800 pb-8">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <HardHat className="text-[#7c8d74] h-5 w-5" />
-              <span className="text-[10px] tracking-[0.3em] text-zinc-500 uppercase font-bold">Consola de Administración</span>
-            </div>
-            <h1 className="text-4xl font-black uppercase tracking-tighter">
-              KOH <span className="text-[#7c8d74]">PORTFOLIO</span>
-            </h1>
-          </div>
-          <div className="text-right">
-             <p className="text-xs text-zinc-500 font-mono">v2.0.26 — Supabase Cloud</p>
-          </div>
+        <header className="flex justify-between mb-12 border-b border-zinc-800 pb-8">
+          <h1 className="text-2xl font-black uppercase italic">KOH <span className="text-[#7c8d74]">ADMIN</span></h1>
+          {editandoId && <button onClick={cancelarEdicion} className="bg-blue-600 px-4 py-1 rounded text-[10px] font-bold">CANCELAR EDICIÓN</button>}
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-          
-          {/* COLUMNA IZQUIERDA: FORMULARIOS */}
-          <div className="lg:col-span-7 space-y-12">
-            
-            {/* FORM PROYECTOS */}
-            <section className="bg-[#1c1e1a] border border-zinc-800 p-8 rounded-xl shadow-2xl">
-              <div className="flex items-center gap-3 mb-6">
-                <ImageIcon className="text-[#7c8d74] h-5 w-5" />
-                <h2 className="text-sm font-black uppercase tracking-widest text-[#7c8d74]">Cargar Obra Fotográfica</h2>
-              </div>
-              
+          <div className="lg:col-span-7 space-y-8">
+            <section className="bg-[#1c1e1a] p-8 rounded-xl border border-zinc-800">
               <form onSubmit={handlePublicar} className="space-y-6">
-                <input 
-                  type="text" placeholder="NOMBRE DEL PROYECTO" 
-                  className="w-full bg-[#141512] border-zinc-800 border p-4 text-sm outline-none focus:border-[#7c8d74] transition-colors"
-                  value={nombre} onChange={e => setNombre(e.target.value)}
-                />
-                <textarea 
-                  placeholder="ESPECIFICACIONES TÉCNICAS Y DESCRIPCIÓN" rows={4}
-                  className="w-full bg-[#141512] border-zinc-800 border p-4 text-sm outline-none focus:border-[#7c8d74] transition-colors"
-                  value={descripcion} onChange={e => setDescripcion(e.target.value)}
-                />
+                <input type="text" placeholder="NOMBRE" className="w-full bg-[#141512] border-zinc-800 border p-4 text-sm" value={nombre} onChange={e => setNombre(e.target.value)} />
+                <textarea placeholder="DESCRIPCIÓN" rows={3} className="w-full bg-[#141512] border-zinc-800 border p-4 text-sm" value={descripcion} onChange={e => setDescripcion(e.target.value)} />
+                
+                {/* CHECKBOX LEGAL */}
+                <div className="flex items-center gap-3 p-4 bg-blue-950/20 border border-blue-500/30 rounded-lg">
+                  <input type="checkbox" id="vol" className="w-5 h-5 accent-[#7c8d74]" checked={esVoluntario} onChange={e => setEsVoluntario(e.target.checked)} />
+                  <label htmlFor="vol" className="text-xs font-bold uppercase cursor-pointer">¿Es anteproyecto voluntario / apoyo académico?</label>
+                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-4 border border-zinc-800 bg-[#141512]">
-                    <label className="text-[10px] block mb-2 text-zinc-500 font-bold uppercase">Portada (Principal)</label>
-                    <input type="file" accept="image/*" className="text-[10px] file:bg-[#7c8d74] file:text-white file:border-none file:px-3 file:py-1 file:rounded-full file:mr-4 file:cursor-pointer" onChange={e => setMiniatura(e.target.files?.[0] || null)} />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-[#141512] border border-zinc-800">
+                    <label className="text-[10px] text-zinc-500 uppercase font-bold block mb-2">Portada</label>
+                    <input type="file" className="text-[10px]" onChange={e => setMiniatura(e.target.files?.[0] || null)} />
                   </div>
-                  <div className="p-4 border border-zinc-800 bg-[#141512]">
-                    <label className="text-[10px] block mb-2 text-zinc-500 font-bold uppercase">Galería (Múltiple)</label>
-                    <input type="file" multiple accept="image/*" className="text-[10px] file:bg-zinc-700 file:text-white file:border-none file:px-3 file:py-1 file:rounded-full file:mr-4 file:cursor-pointer" 
-                      onChange={e => { if (e.target.files) setArchivosOrdenados(Array.from(e.target.files)); }} />
+                  <div className="p-4 bg-[#141512] border border-zinc-800">
+                    <label className="text-[10px] text-zinc-500 uppercase font-bold block mb-2">Añadir Galería</label>
+                    <input type="file" multiple className="text-[10px]" onChange={e => e.target.files && setArchivosOrdenados(Array.from(e.target.files))} />
                   </div>
                 </div>
 
-                {archivosOrdenados.length > 0 && (
-                  <div className="flex flex-wrap gap-3 p-4 bg-[#141512] border border-zinc-800">
-                    {archivosOrdenados.map((file, idx) => (
-                      <div key={idx} className="relative w-16 h-16 border border-zinc-700">
-                        <img src={URL.createObjectURL(file)} className="w-full h-full object-cover" alt="prev" />
-                        <div className="absolute inset-x-0 bottom-0 bg-black/80 flex justify-between text-[8px] px-1">
-                          <button type="button" onClick={() => moverArchivo(idx, 'izq')} disabled={idx === 0}>←</button>
-                          <span>{idx + 1}</span>
-                          <button type="button" onClick={() => moverArchivo(idx, 'der')} disabled={idx === archivosOrdenados.length - 1}>→</button>
-                        </div>
+                {urlsExistentes.length > 0 && (
+                  <div className="flex flex-wrap gap-2 p-4 bg-black/40 rounded">
+                    {urlsExistentes.map((url, i) => (
+                      <div key={i} className="relative group w-16 h-16">
+                        <img src={url} className="w-full h-full object-cover rounded" />
+                        <button type="button" onClick={() => setUrlsExistentes(urlsExistentes.filter((_, idx) => idx !== i))} className="absolute -top-1 -right-1 bg-red-600 rounded-full p-0.5 opacity-0 group-hover:opacity-100"><X size={12}/></button>
                       </div>
                     ))}
                   </div>
                 )}
 
-                <button disabled={cargando} className="w-full py-4 bg-[#7c8d74] hover:bg-[#6b7a64] text-white text-xs font-black uppercase tracking-[0.2em] transition-all disabled:opacity-50">
-                  {cargando ? 'Sincronizando...' : 'REGISTRAR PROYECTO'}
-                </button>
+                <button disabled={cargando} className="w-full py-4 bg-[#7c8d74] text-white font-black text-xs uppercase tracking-widest">{cargando ? 'PROCESANDO...' : 'GUARDAR PROYECTO'}</button>
               </form>
             </section>
+          </div>
 
-            {/* FORM VIDEOS */}
-            <section className="bg-[#1c1e1a] border border-zinc-800 p-8 rounded-xl">
-              <div className="flex items-center gap-3 mb-6">
-                <Video className="text-red-800 h-5 w-5" />
-                <h2 className="text-sm font-black uppercase tracking-widest text-red-800">Cargar Recorrido Virtual</h2>
-              </div>
-              <form onSubmit={handlePublicarVideo} className="space-y-4">
-                <input type="text" placeholder="TÍTULO DEL VIDEO" className="w-full bg-[#141512] border-zinc-800 border p-4 text-sm outline-none" value={videoTitulo} onChange={e => setVideoTitulo(e.target.value)} />
-                <input type="url" placeholder="LINK DE YOUTUBE" className="w-full bg-[#141512] border-zinc-800 border p-4 text-sm outline-none" value={videoUrl} onChange={e => setVideoUrl(e.target.value)} />
-                <div className="p-4 border border-zinc-800 bg-[#141512]">
-                   <label className="text-[10px] block mb-2 text-zinc-500 font-bold uppercase">Miniatura del Video</label>
-                   <input type="file" accept="image/*" className="text-[10px]" onChange={e => setVideoThumb(e.target.files?.[0] || null)} />
+          <div className="lg:col-span-5 space-y-4">
+            <h3 className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Portafolio Activo</h3>
+            {proyectos.map(p => (
+              <div key={p.id} className="flex items-center justify-between bg-[#1c1e1a] p-4 border border-zinc-800 rounded-lg group">
+                <div className="flex items-center gap-3">
+                  <img src={p.miniatura_url} className="w-10 h-10 object-cover rounded" />
+                  <span className="text-xs font-bold uppercase truncate w-32">{p.nombre}</span>
+                  {p.es_voluntario && <span className="text-[8px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">VOL</span>}
                 </div>
-                <button disabled={cargando} className="w-full py-4 bg-red-900/20 hover:bg-red-900 border border-red-900 text-red-500 hover:text-white text-xs font-black uppercase tracking-[0.2em] transition-all">
-                   PUBLICAR VIDEO
-                </button>
-              </form>
-            </section>
-          </div>
-
-          {/* COLUMNA DERECHA: LISTADOS */}
-          <div className="lg:col-span-5 space-y-8">
-            <div>
-              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-6 flex items-center gap-2">
-                <span className="w-8 h-px bg-zinc-800"></span> Proyectos en línea
-              </h3>
-              <div className="space-y-3">
-                {proyectos.map(p => (
-                  <div key={p.id} className="group flex items-center justify-between bg-[#1c1e1a] p-4 border border-zinc-800 hover:border-zinc-600 transition-all">
-                    <div className="flex items-center gap-4">
-                       <img src={p.miniatura_url} className="w-10 h-10 object-cover rounded shadow-lg" alt="" />
-                       <span className="text-xs font-bold uppercase tracking-tight truncate w-32 md:w-48">{p.nombre}</span>
-                    </div>
-                    <button onClick={() => handleBorrar(p.id, p.miniatura_url, p.infografias)} className="opacity-0 group-hover:opacity-100 p-2 text-zinc-500 hover:text-red-500 transition-all">
-                      <Trash2 h-4 w-4 />
-                    </button>
-                  </div>
-                ))}
+                <div className="flex gap-2 opacity-0 group-hover:opacity-100">
+                  <button onClick={() => prepararEdicion(p)} className="p-2 text-zinc-400 hover:text-white"><Edit2 size={16}/></button>
+                  <button onClick={() => handleBorrar(p.id, p.miniatura_url, p.infografias)} className="p-2 text-zinc-400 hover:text-red-500"><Trash2 size={16}/></button>
+                </div>
               </div>
-            </div>
-
-            <div>
-              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-6 flex items-center gap-2">
-                <span className="w-8 h-px bg-zinc-800"></span> Videos en línea
-              </h3>
-              <div className="space-y-3">
-                {videos.map(v => (
-                  <div key={v.id} className="group flex items-center justify-between bg-[#1c1e1a] p-4 border border-zinc-800 hover:border-zinc-600 transition-all">
-                    <span className="text-xs font-bold uppercase truncate w-40">{v.titulo}</span>
-                    <button onClick={() => handleBorrarVideo(v.id, v.url_miniatura)} className="opacity-0 group-hover:opacity-100 p-2 text-zinc-500 hover:text-red-500 transition-all">
-                      <Trash2 h-4 w-4 />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
+            ))}
           </div>
-
         </div>
       </div>
     </div>
