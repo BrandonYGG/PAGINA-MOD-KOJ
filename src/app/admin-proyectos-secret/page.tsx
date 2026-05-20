@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/supabaseClient';
 import imageCompression from 'browser-image-compression';
 import { Trash2, Video, Image as ImageIcon, X, Edit2, ArrowLeft, ArrowRight, CheckCircle, AlertCircle } from 'lucide-react';
@@ -22,32 +22,36 @@ interface Toast {
   type: ToastType;
 }
 
-// --- COMPONENTE TOAST ---
-function ToastContainer({ toasts, onRemove }: { toasts: Toast[]; onRemove: (id: number) => void }) {
+// --- TOAST CENTRADO ---
+function ToastCenter({ toasts, onRemove }: { toasts: Toast[]; onRemove: (id: number) => void }) {
+  if (toasts.length === 0) return null;
+  const t = toasts[toasts.length - 1]; // mostrar solo el último
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
-      {toasts.map((t) => (
-        <div
-          key={t.id}
-          className={`flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl border text-sm font-bold uppercase tracking-wider transition-all duration-500
-            ${t.type === 'success'
-              ? 'bg-[#1c1e1a] border-[#7c8d74] text-[#7c8d74]'
-              : 'bg-[#1c1e1a] border-red-700 text-red-400'}`}
+    <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+      <div
+        className={`pointer-events-auto flex flex-col items-center gap-4 px-10 py-8 rounded-2xl shadow-2xl border backdrop-blur-sm
+          ${t.type === 'success'
+            ? 'bg-[#1c1e1a]/95 border-[#7c8d74]'
+            : 'bg-[#1c1e1a]/95 border-red-700'}`}
+      >
+        {t.type === 'success'
+          ? <CheckCircle size={48} className="text-[#7c8d74]" />
+          : <AlertCircle size={48} className="text-red-400" />}
+        <p className={`text-sm font-black uppercase tracking-widest text-center ${t.type === 'success' ? 'text-[#7c8d74]' : 'text-red-400'}`}>
+          {t.message}
+        </p>
+        <button
+          onClick={() => onRemove(t.id)}
+          className="mt-2 text-[10px] text-zinc-500 hover:text-white uppercase font-bold border border-zinc-700 px-4 py-1 rounded transition-colors"
         >
-          {t.type === 'success'
-            ? <CheckCircle size={18} className="shrink-0" />
-            : <AlertCircle size={18} className="shrink-0" />}
-          <span>{t.message}</span>
-          <button onClick={() => onRemove(t.id)} className="ml-2 text-zinc-500 hover:text-white transition-colors">
-            <X size={14} />
-          </button>
-        </div>
-      ))}
+          Cerrar
+        </button>
+      </div>
     </div>
   );
 }
 
-// --- COMPONENTE BARRA DE PROGRESO ---
+// --- BARRA DE PROGRESO ---
 function ProgressBar({ progreso, label }: { progreso: number; label: string }) {
   if (progreso === 0) return null;
   return (
@@ -78,6 +82,11 @@ export default function AdminPage() {
   const [urlsExistentes, setUrlsExistentes] = useState<string[]>([]);
   const [miniaturaExistente, setMiniaturaExistente] = useState('');
 
+  // --- REFS PARA RESETEAR INPUTS ---
+  const inputMiniaturaRef = useRef<HTMLInputElement>(null);
+  const inputLaminasRef = useRef<HTMLInputElement>(null);
+  const inputVideoThumbRef = useRef<HTMLInputElement>(null);
+
   // --- ESTADOS VIDEOS ---
   const [videoTitulo, setVideoTitulo] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
@@ -95,7 +104,10 @@ export default function AdminPage() {
   const showToast = useCallback((message: string, type: ToastType = 'success') => {
     const id = Date.now();
     setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+    // Auto-cerrar éxito en 3s, errores dejan que el usuario cierre
+    if (type === 'success') {
+      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000);
+    }
   }, []);
 
   const removeToast = useCallback((id: number) => {
@@ -119,6 +131,15 @@ export default function AdminPage() {
 
   const cleanFileName = (name: string) => name.replace(/[^a-zA-Z0-9.]/g, '_');
 
+  const resetInputs = () => {
+    if (inputMiniaturaRef.current) inputMiniaturaRef.current.value = '';
+    if (inputLaminasRef.current) inputLaminasRef.current.value = '';
+  };
+
+  const resetInputsVideo = () => {
+    if (inputVideoThumbRef.current) inputVideoThumbRef.current.value = '';
+  };
+
   const moverArchivo = (index: number, direccion: 'izq' | 'der') => {
     const nuevos = [...archivosOrdenados];
     const item = nuevos.splice(index, 1)[0];
@@ -135,6 +156,7 @@ export default function AdminPage() {
     setMiniaturaExistente(p.miniatura_url);
     setUrlsExistentes(p.infografias || []);
     setArchivosOrdenados([]);
+    resetInputs();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -142,7 +164,9 @@ export default function AdminPage() {
     setEditandoId(null);
     setNombre(''); setDescripcion(''); setEsVoluntario(false);
     setMiniaturaExistente(''); setUrlsExistentes([]); setArchivosOrdenados([]);
+    setMiniatura(null);
     setProgreso(0);
+    resetInputs();
   };
 
   const prepararEdicionVideo = (v: any) => {
@@ -151,12 +175,14 @@ export default function AdminPage() {
     setVideoUrl(v.youtube_url);
     setVideoThumbExistente(v.url_miniatura);
     setVideoThumb(null);
+    resetInputsVideo();
   };
 
   const cancelarEdicionVideo = () => {
     setEditandoVideoId(null);
     setVideoTitulo(''); setVideoUrl(''); setVideoThumbExistente(''); setVideoThumb(null);
     setProgreso(0);
+    resetInputsVideo();
   };
 
   // --- PUBLICAR / EDITAR PROYECTO ---
@@ -167,7 +193,6 @@ export default function AdminPage() {
     setProgreso(0);
 
     try {
-      // Calcular total de pasos: miniatura (si hay) + láminas
       const totalPasos = (miniatura ? 1 : 0) + archivosOrdenados.length;
       let pasoActual = 0;
 
@@ -300,12 +325,12 @@ export default function AdminPage() {
 
   return (
     <div className="p-4 md:p-12 bg-[#141512] min-h-screen text-zinc-100">
-      <ToastContainer toasts={toasts} onRemove={removeToast} />
+      <ToastCenter toasts={toasts} onRemove={removeToast} />
 
       <div className="max-w-6xl mx-auto">
         <header className="flex justify-between mb-12 border-b border-zinc-800 pb-8">
           <h1 className="text-2xl font-black uppercase italic">KOH <span className="text-[#7c8d74]">ADMIN</span></h1>
-          <p className="text-[10px] text-zinc-500 font-mono self-end">v2.7 — Toast + Progress</p>
+          <p className="text-[10px] text-zinc-500 font-mono self-end">v2.8 — Toast Central + Reset</p>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
@@ -339,12 +364,12 @@ export default function AdminPage() {
                     <label className="text-[10px] text-zinc-500 uppercase font-bold block mb-2">Portada (PNG/JPG)</label>
                     <p className="text-[9px] text-[#7c8d74] mb-2">↓ Se comprime a &lt;500 KB automáticamente</p>
                     {miniaturaExistente && !miniatura && <img src={miniaturaExistente} className="w-full h-20 object-cover mb-2 rounded border border-zinc-800" />}
-                    <input type="file" accept="image/png, image/jpeg" className="text-[10px]" onChange={e => setMiniatura(e.target.files?.[0] || null)} />
+                    <input ref={inputMiniaturaRef} type="file" accept="image/png, image/jpeg" className="text-[10px]" onChange={e => setMiniatura(e.target.files?.[0] || null)} />
                   </div>
                   <div className="p-4 bg-[#141512] border border-zinc-800">
                     <label className="text-[10px] text-zinc-500 uppercase font-bold block mb-2">Láminas (PNG/JPG)</label>
                     <p className="text-[9px] text-[#7c8d74] mb-2">↓ Se comprimen a &lt;500 KB automáticamente</p>
-                    <input type="file" accept="image/png, image/jpeg" multiple className="text-[10px]" onChange={e => e.target.files && setArchivosOrdenados(Array.from(e.target.files))} />
+                    <input ref={inputLaminasRef} type="file" accept="image/png, image/jpeg" multiple className="text-[10px]" onChange={e => e.target.files && setArchivosOrdenados(Array.from(e.target.files))} />
                   </div>
                 </div>
 
@@ -385,7 +410,6 @@ export default function AdminPage() {
                   </div>
                 )}
 
-                {/* BARRA DE PROGRESO PROYECTO */}
                 {cargando && <ProgressBar progreso={progreso} label={labelProgreso} />}
 
                 <button disabled={cargando} className="w-full py-4 bg-[#7c8d74] text-white font-black text-xs uppercase tracking-widest hover:bg-[#6b7a64] transition-all shadow-lg shadow-black/50 disabled:opacity-60">
@@ -412,10 +436,9 @@ export default function AdminPage() {
                   <label className="text-[10px] text-zinc-500 uppercase font-bold block mb-2">Miniatura del Video (PNG/JPG)</label>
                   <p className="text-[9px] text-[#7c8d74] mb-2">↓ Se comprime a &lt;500 KB automáticamente</p>
                   {videoThumbExistente && !videoThumb && <img src={videoThumbExistente} className="w-40 h-20 object-cover mb-2 rounded border border-zinc-800" />}
-                  <input type="file" accept="image/png, image/jpeg" className="text-[10px]" onChange={e => setVideoThumb(e.target.files?.[0] || null)} />
+                  <input ref={inputVideoThumbRef} type="file" accept="image/png, image/jpeg" className="text-[10px]" onChange={e => setVideoThumb(e.target.files?.[0] || null)} />
                 </div>
 
-                {/* BARRA DE PROGRESO VIDEO */}
                 {cargando && <ProgressBar progreso={progreso} label={labelProgreso} />}
 
                 <button disabled={cargando} className="w-full py-4 bg-red-900/20 hover:bg-red-900 border border-red-900 text-red-500 hover:text-white text-xs font-black uppercase tracking-widest transition-all disabled:opacity-60">
