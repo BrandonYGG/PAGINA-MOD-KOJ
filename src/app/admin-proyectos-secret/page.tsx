@@ -1,18 +1,70 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/supabaseClient';
 import imageCompression from 'browser-image-compression';
-import { Trash2, Video, Image as ImageIcon, X, Edit2, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Trash2, Video, Image as ImageIcon, X, Edit2, ArrowLeft, ArrowRight, CheckCircle, AlertCircle } from 'lucide-react';
 
 // --- FUNCIÓN DE COMPRESIÓN ---
 const comprimirImagen = async (file: File): Promise<File> => {
   return await imageCompression(file, {
-    maxSizeMB: 0.5,        // 500 KB máximo
+    maxSizeMB: 0.5,
     maxWidthOrHeight: 1920,
     useWebWorker: true,
   });
 };
+
+// --- TIPOS TOAST ---
+type ToastType = 'success' | 'error';
+interface Toast {
+  id: number;
+  message: string;
+  type: ToastType;
+}
+
+// --- COMPONENTE TOAST ---
+function ToastContainer({ toasts, onRemove }: { toasts: Toast[]; onRemove: (id: number) => void }) {
+  return (
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
+      {toasts.map((t) => (
+        <div
+          key={t.id}
+          className={`flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl border text-sm font-bold uppercase tracking-wider transition-all duration-500
+            ${t.type === 'success'
+              ? 'bg-[#1c1e1a] border-[#7c8d74] text-[#7c8d74]'
+              : 'bg-[#1c1e1a] border-red-700 text-red-400'}`}
+        >
+          {t.type === 'success'
+            ? <CheckCircle size={18} className="shrink-0" />
+            : <AlertCircle size={18} className="shrink-0" />}
+          <span>{t.message}</span>
+          <button onClick={() => onRemove(t.id)} className="ml-2 text-zinc-500 hover:text-white transition-colors">
+            <X size={14} />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// --- COMPONENTE BARRA DE PROGRESO ---
+function ProgressBar({ progreso, label }: { progreso: number; label: string }) {
+  if (progreso === 0) return null;
+  return (
+    <div className="w-full space-y-2">
+      <div className="flex justify-between items-center">
+        <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-widest">{label}</span>
+        <span className="text-[10px] text-[#7c8d74] font-black">{progreso}%</span>
+      </div>
+      <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+        <div
+          className="h-full bg-[#7c8d74] rounded-full transition-all duration-300"
+          style={{ width: `${progreso}%` }}
+        />
+      </div>
+    </div>
+  );
+}
 
 export default function AdminPage() {
   // --- ESTADOS PROYECTOS ---
@@ -35,6 +87,20 @@ export default function AdminPage() {
   const [videoThumbExistente, setVideoThumbExistente] = useState('');
 
   const [cargando, setCargando] = useState(false);
+  const [progreso, setProgreso] = useState(0);
+  const [labelProgreso, setLabelProgreso] = useState('');
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  // --- TOAST HELPERS ---
+  const showToast = useCallback((message: string, type: ToastType = 'success') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+  }, []);
+
+  const removeToast = useCallback((id: number) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
 
   useEffect(() => {
     fetchProyectos();
@@ -53,7 +119,6 @@ export default function AdminPage() {
 
   const cleanFileName = (name: string) => name.replace(/[^a-zA-Z0-9.]/g, '_');
 
-  // --- LÓGICA DE ORDENAMIENTO DE LÁMINAS NUEVAS ---
   const moverArchivo = (index: number, direccion: 'izq' | 'der') => {
     const nuevos = [...archivosOrdenados];
     const item = nuevos.splice(index, 1)[0];
@@ -62,7 +127,6 @@ export default function AdminPage() {
     setArchivosOrdenados(nuevos);
   };
 
-  // --- LÓGICA EDICIÓN PROYECTOS ---
   const prepararEdicion = (p: any) => {
     setEditandoId(p.id);
     setNombre(p.nombre);
@@ -78,9 +142,9 @@ export default function AdminPage() {
     setEditandoId(null);
     setNombre(''); setDescripcion(''); setEsVoluntario(false);
     setMiniaturaExistente(''); setUrlsExistentes([]); setArchivosOrdenados([]);
+    setProgreso(0);
   };
 
-  // --- LÓGICA EDICIÓN VIDEOS ---
   const prepararEdicionVideo = (v: any) => {
     setEditandoVideoId(v.id);
     setVideoTitulo(v.titulo);
@@ -92,33 +156,49 @@ export default function AdminPage() {
   const cancelarEdicionVideo = () => {
     setEditandoVideoId(null);
     setVideoTitulo(''); setVideoUrl(''); setVideoThumbExistente(''); setVideoThumb(null);
+    setProgreso(0);
   };
 
   // --- PUBLICAR / EDITAR PROYECTO ---
   const handlePublicar = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nombre) return alert("Nombre obligatorio");
+    if (!nombre) return showToast('Nombre obligatorio', 'error');
     setCargando(true);
-    try {
-      let urlFinalMiniatura = miniaturaExistente;
+    setProgreso(0);
 
-      // Subir miniatura del proyecto (comprimida)
+    try {
+      // Calcular total de pasos: miniatura (si hay) + láminas
+      const totalPasos = (miniatura ? 1 : 0) + archivosOrdenados.length;
+      let pasoActual = 0;
+
+      const avanzar = () => {
+        pasoActual++;
+        setProgreso(Math.round((pasoActual / totalPasos) * 100));
+      };
+
+      let urlFinalMiniatura = miniaturaExistente;
       if (miniatura) {
+        setLabelProgreso('Comprimiendo portada...');
         const comprimida = await comprimirImagen(miniatura);
+        setLabelProgreso('Subiendo portada...');
         const minName = `${Date.now()}_thumb_${cleanFileName(comprimida.name)}`;
         await supabase.storage.from('galeria').upload(minName, comprimida);
         const { data } = supabase.storage.from('galeria').getPublicUrl(minName);
         urlFinalMiniatura = data.publicUrl;
+        avanzar();
       }
 
-      // Subir láminas (comprimidas)
       const nuevasUrls = [];
-      for (const file of archivosOrdenados) {
+      for (let i = 0; i < archivosOrdenados.length; i++) {
+        const file = archivosOrdenados[i];
+        setLabelProgreso(`Comprimiendo lámina ${i + 1} de ${archivosOrdenados.length}...`);
         const comprimida = await comprimirImagen(file);
+        setLabelProgreso(`Subiendo lámina ${i + 1} de ${archivosOrdenados.length}...`);
         const fileName = `${Date.now()}_info_${cleanFileName(comprimida.name)}`;
         await supabase.storage.from('galeria').upload(fileName, comprimida);
         const { data } = supabase.storage.from('galeria').getPublicUrl(fileName);
         nuevasUrls.push(data.publicUrl);
+        avanzar();
       }
 
       const payload = {
@@ -132,31 +212,42 @@ export default function AdminPage() {
       if (editandoId) {
         await supabase.from('proyectos').update(payload).eq('id', editandoId);
       } else {
-        if (!miniatura) throw new Error("Miniatura obligatoria");
+        if (!miniatura) throw new Error('Miniatura obligatoria');
         await supabase.from('proyectos').insert([payload]);
       }
 
-      alert("¡Sincronizado con éxito!");
+      showToast('¡Proyecto sincronizado con éxito!', 'success');
       cancelarEdicion();
       fetchProyectos();
-    } catch (err: any) { alert(err.message); } finally { setCargando(false); }
+    } catch (err: any) {
+      showToast(err.message, 'error');
+    } finally {
+      setCargando(false);
+      setProgreso(0);
+      setLabelProgreso('');
+    }
   };
 
   // --- PUBLICAR / EDITAR VIDEO ---
   const handlePublicarVideo = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!videoTitulo || !videoUrl) return alert("Título y URL obligatorios");
+    if (!videoTitulo || !videoUrl) return showToast('Título y URL obligatorios', 'error');
     setCargando(true);
+    setProgreso(0);
+
     try {
       let urlFinalThumb = videoThumbExistente;
-
-      // Subir miniatura del video (comprimida)
       if (videoThumb) {
+        setLabelProgreso('Comprimiendo miniatura...');
+        setProgreso(30);
         const comprimida = await comprimirImagen(videoThumb);
+        setLabelProgreso('Subiendo miniatura...');
+        setProgreso(65);
         const thumbName = `${Date.now()}_vthumb_${cleanFileName(comprimida.name)}`;
         await supabase.storage.from('galeria').upload(thumbName, comprimida);
         const { data } = supabase.storage.from('galeria').getPublicUrl(thumbName);
         urlFinalThumb = data.publicUrl;
+        setProgreso(100);
       }
 
       const payload = {
@@ -168,43 +259,53 @@ export default function AdminPage() {
       if (editandoVideoId) {
         await supabase.from('videos_proyectos').update(payload).eq('id', editandoVideoId);
       } else {
-        if (!videoThumb) throw new Error("Miniatura de video obligatoria");
+        if (!videoThumb) throw new Error('Miniatura de video obligatoria');
         await supabase.from('videos_proyectos').insert([payload]);
       }
 
-      alert("¡Video guardado!");
+      showToast('¡Video guardado con éxito!', 'success');
       cancelarEdicionVideo();
       fetchVideos();
-    } catch (err: any) { alert(err.message); } finally { setCargando(false); }
+    } catch (err: any) {
+      showToast(err.message, 'error');
+    } finally {
+      setCargando(false);
+      setProgreso(0);
+      setLabelProgreso('');
+    }
   };
 
   const handleBorrar = async (id: number, thumbUrl: string, infoUrls: string[]) => {
-    if (!confirm("¿Eliminar permanentemente? Se borrarán los archivos del servidor.")) return;
+    if (!confirm('¿Eliminar permanentemente? Se borrarán los archivos del servidor.')) return;
     try {
       const getFileName = (url: string) => url.split('/').pop()?.split('?')[0];
       const files = [getFileName(thumbUrl), ...(infoUrls?.map(getFileName) || [])].filter(Boolean) as string[];
       if (files.length) await supabase.storage.from('galeria').remove(files);
       await supabase.from('proyectos').delete().eq('id', id);
+      showToast('Proyecto eliminado', 'error');
       fetchProyectos();
-    } catch (err: any) { alert(err.message); }
+    } catch (err: any) { showToast(err.message, 'error'); }
   };
 
   const handleBorrarVideo = async (id: string, thumbUrl: string) => {
-    if (!confirm("¿Eliminar video permanentemente?")) return;
+    if (!confirm('¿Eliminar video permanentemente?')) return;
     try {
       const fileName = thumbUrl.split('/').pop()?.split('?')[0];
       if (fileName) await supabase.storage.from('galeria').remove([fileName]);
       await supabase.from('videos_proyectos').delete().eq('id', id);
+      showToast('Video eliminado', 'error');
       fetchVideos();
-    } catch (err: any) { alert(err.message); }
+    } catch (err: any) { showToast(err.message, 'error'); }
   };
 
   return (
     <div className="p-4 md:p-12 bg-[#141512] min-h-screen text-zinc-100">
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+
       <div className="max-w-6xl mx-auto">
         <header className="flex justify-between mb-12 border-b border-zinc-800 pb-8">
           <h1 className="text-2xl font-black uppercase italic">KOH <span className="text-[#7c8d74]">ADMIN</span></h1>
-          <p className="text-[10px] text-zinc-500 font-mono self-end">v2.6 — Compresión Automática</p>
+          <p className="text-[10px] text-zinc-500 font-mono self-end">v2.7 — Toast + Progress</p>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
@@ -284,8 +385,11 @@ export default function AdminPage() {
                   </div>
                 )}
 
-                <button disabled={cargando} className="w-full py-4 bg-[#7c8d74] text-white font-black text-xs uppercase tracking-widest hover:bg-[#6b7a64] transition-all shadow-lg shadow-black/50">
-                  {cargando ? 'COMPRIMIENDO Y SINCRONIZANDO...' : editandoId ? 'GUARDAR PROYECTO' : 'PUBLICAR PROYECTO'}
+                {/* BARRA DE PROGRESO PROYECTO */}
+                {cargando && <ProgressBar progreso={progreso} label={labelProgreso} />}
+
+                <button disabled={cargando} className="w-full py-4 bg-[#7c8d74] text-white font-black text-xs uppercase tracking-widest hover:bg-[#6b7a64] transition-all shadow-lg shadow-black/50 disabled:opacity-60">
+                  {cargando ? 'PROCESANDO...' : editandoId ? 'GUARDAR PROYECTO' : 'PUBLICAR PROYECTO'}
                 </button>
               </form>
             </section>
@@ -310,7 +414,11 @@ export default function AdminPage() {
                   {videoThumbExistente && !videoThumb && <img src={videoThumbExistente} className="w-40 h-20 object-cover mb-2 rounded border border-zinc-800" />}
                   <input type="file" accept="image/png, image/jpeg" className="text-[10px]" onChange={e => setVideoThumb(e.target.files?.[0] || null)} />
                 </div>
-                <button disabled={cargando} className="w-full py-4 bg-red-900/20 hover:bg-red-900 border border-red-900 text-red-500 hover:text-white text-xs font-black uppercase tracking-widest transition-all">
+
+                {/* BARRA DE PROGRESO VIDEO */}
+                {cargando && <ProgressBar progreso={progreso} label={labelProgreso} />}
+
+                <button disabled={cargando} className="w-full py-4 bg-red-900/20 hover:bg-red-900 border border-red-900 text-red-500 hover:text-white text-xs font-black uppercase tracking-widest transition-all disabled:opacity-60">
                   {editandoVideoId ? 'GUARDAR CAMBIOS VIDEO' : 'PUBLICAR VIDEO'}
                 </button>
               </form>
