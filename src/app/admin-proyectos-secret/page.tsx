@@ -105,7 +105,7 @@ function StorageWidget({ refrescar }: { refrescar: number }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <HardDrive size={14} className="text-[#7c8d74]" />
-          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Almacenamiento Bucket</span>
+          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Almacenamiento en la Nube</span>
         </div>
         <button onClick={calcularStorage} className="text-zinc-600 hover:text-[#7c8d74] transition-colors" title="Refrescar">
           <RefreshCw size={12} className={cargando ? 'animate-spin' : ''} />
@@ -143,7 +143,7 @@ function StorageWidget({ refrescar }: { refrescar: number }) {
             </div>
             <div className="text-center">
               <p className="text-sm font-black text-zinc-300">{formatBytes(LIMITE_BYTES - (totalBytes ?? 0))}</p>
-              <p className="text-[8px] text-zinc-600 uppercase font-bold">Libres</p>
+              <p className="text-[8px] text-zinc-600 uppercase font-bold">Disponibles</p>
             </div>
           </div>
 
