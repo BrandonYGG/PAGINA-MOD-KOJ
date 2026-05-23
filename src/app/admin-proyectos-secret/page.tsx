@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/supabaseClient';
 import imageCompression from 'browser-image-compression';
-import { Trash2, Video, Image as ImageIcon, X, Edit2, CheckCircle, AlertCircle, GripVertical } from 'lucide-react';
+import { Trash2, Video, Image as ImageIcon, X, Edit2, CheckCircle, AlertCircle, GripVertical, HardDrive, RefreshCw } from 'lucide-react';
 
 const comprimirImagen = async (file: File): Promise<File> => {
   return await imageCompression(file, {
@@ -52,6 +52,113 @@ function ProgressBar({ progreso, label }: { progreso: number; label: string }) {
   );
 }
 
+// --- STORAGE WIDGET ---
+const LIMITE_BYTES = 1 * 1024 * 1024 * 1024; // 1 GB plan gratuito Supabase
+
+function formatBytes(bytes: number) {
+  if (bytes === 0) return '0 B';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+function StorageWidget({ refrescar }: { refrescar: number }) {
+  const [totalBytes, setTotalBytes] = useState<number | null>(null);
+  const [totalArchivos, setTotalArchivos] = useState(0);
+  const [cargando, setCargando] = useState(true);
+
+  const calcularStorage = useCallback(async () => {
+    setCargando(true);
+    try {
+      let offset = 0;
+      let todos: any[] = [];
+      while (true) {
+        const { data, error } = await supabase.storage.from('galeria').list('', {
+          limit: 100,
+          offset,
+          sortBy: { column: 'name', order: 'asc' },
+        });
+        if (error || !data || data.length === 0) break;
+        todos = [...todos, ...data];
+        if (data.length < 100) break;
+        offset += 100;
+      }
+      const suma = todos.reduce((acc, f) => acc + (f.metadata?.size || 0), 0);
+      setTotalBytes(suma);
+      setTotalArchivos(todos.length);
+    } catch (err) {
+      console.error('Error calculando storage:', err);
+    } finally {
+      setCargando(false);
+    }
+  }, []);
+
+  useEffect(() => { calcularStorage(); }, [calcularStorage, refrescar]);
+
+  const porcentaje = totalBytes !== null ? Math.min((totalBytes / LIMITE_BYTES) * 100, 100) : 0;
+  const barColor = porcentaje > 80 ? 'bg-red-500' : porcentaje > 50 ? 'bg-yellow-500' : 'bg-[#7c8d74]';
+  const textColor = porcentaje > 80 ? 'text-red-400' : porcentaje > 50 ? 'text-yellow-400' : 'text-[#7c8d74]';
+
+  return (
+    <div className="bg-[#1c1e1a] rounded-xl border border-zinc-800 p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <HardDrive size={14} className="text-[#7c8d74]" />
+          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Almacenamiento Bucket</span>
+        </div>
+        <button onClick={calcularStorage} className="text-zinc-600 hover:text-[#7c8d74] transition-colors" title="Refrescar">
+          <RefreshCw size={12} className={cargando ? 'animate-spin' : ''} />
+        </button>
+      </div>
+
+      {cargando ? (
+        <div className="space-y-2">
+          <div className="h-1.5 bg-zinc-800 rounded-full animate-pulse" />
+          <div className="h-3 w-1/2 bg-zinc-800 rounded animate-pulse" />
+        </div>
+      ) : (
+        <>
+          <div className="space-y-1.5">
+            <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-700 ${barColor}`}
+                style={{ width: `${porcentaje}%` }}
+              />
+            </div>
+            <div className="flex justify-between items-center">
+              <span className={`text-[10px] font-black ${textColor}`}>{formatBytes(totalBytes ?? 0)} usados</span>
+              <span className="text-[10px] text-zinc-600 font-bold">1 GB límite</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 pt-2 border-t border-zinc-800">
+            <div className="text-center">
+              <p className={`text-sm font-black ${textColor}`}>{porcentaje.toFixed(1)}%</p>
+              <p className="text-[8px] text-zinc-600 uppercase font-bold">Usado</p>
+            </div>
+            <div className="text-center border-x border-zinc-800">
+              <p className="text-sm font-black text-zinc-300">{totalArchivos}</p>
+              <p className="text-[8px] text-zinc-600 uppercase font-bold">Archivos</p>
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-black text-zinc-300">{formatBytes(LIMITE_BYTES - (totalBytes ?? 0))}</p>
+              <p className="text-[8px] text-zinc-600 uppercase font-bold">Libres</p>
+            </div>
+          </div>
+
+          {porcentaje > 80 && (
+            <div className="flex items-center gap-2 p-2 bg-red-950/30 rounded-lg border border-red-900/50">
+              <AlertCircle size={12} className="text-red-500 shrink-0" />
+              <p className="text-[9px] text-red-400 font-bold">Almacenamiento casi lleno. Considera eliminar archivos.</p>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // --- DRAG & DROP PARA LÁMINAS ---
 function LaminasSorter({ archivos, onChange }: { archivos: File[]; onChange: (files: File[]) => void }) {
   const dragIndex = useRef<number | null>(null);
@@ -86,27 +193,14 @@ function LaminasSorter({ archivos, onChange }: { archivos: File[]; onChange: (fi
             className={`relative rounded-xl border-2 overflow-hidden cursor-grab active:cursor-grabbing transition-all duration-200 select-none
               ${dragOver === idx ? 'border-[#7c8d74] scale-105 shadow-lg shadow-[#7c8d74]/20' : 'border-zinc-700'}`}
           >
-            <img
-              src={URL.createObjectURL(file)}
-              className="w-full aspect-square object-cover"
-              alt={`lámina ${idx + 1}`}
-              draggable={false}
-            />
-            {/* Overlay con número y grip */}
+            <img src={URL.createObjectURL(file)} className="w-full aspect-square object-cover" alt={`lámina ${idx + 1}`} draggable={false} />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
             <div className="absolute top-2 left-2 bg-black/60 rounded-full w-6 h-6 flex items-center justify-center">
               <span className="text-[10px] font-black text-[#7c8d74]">{idx + 1}</span>
             </div>
-            <div className="absolute top-2 right-2 text-zinc-400">
-              <GripVertical size={14} />
-            </div>
-            <p className="absolute bottom-2 left-0 right-0 text-center text-[8px] text-zinc-300 truncate px-2">
-              {file.name}
-            </p>
-            {/* Indicador drop */}
-            {dragOver === idx && (
-              <div className="absolute inset-0 border-2 border-[#7c8d74] rounded-xl bg-[#7c8d74]/10" />
-            )}
+            <div className="absolute top-2 right-2 text-zinc-400"><GripVertical size={14} /></div>
+            <p className="absolute bottom-2 left-0 right-0 text-center text-[8px] text-zinc-300 truncate px-2">{file.name}</p>
+            {dragOver === idx && <div className="absolute inset-0 border-2 border-[#7c8d74] rounded-xl bg-[#7c8d74]/10" />}
           </div>
         ))}
       </div>
@@ -140,6 +234,7 @@ export default function AdminPage() {
   const [progreso, setProgreso] = useState(0);
   const [labelProgreso, setLabelProgreso] = useState('');
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [refrescarStorage, setRefrescarStorage] = useState(0);
 
   const showToast = useCallback((message: string, type: ToastType = 'success') => {
     const id = Date.now();
@@ -167,9 +262,7 @@ export default function AdminPage() {
     if (inputMiniaturaRef.current) inputMiniaturaRef.current.value = '';
     if (inputLaminasRef.current) inputLaminasRef.current.value = '';
   };
-  const resetInputsVideo = () => {
-    if (inputVideoThumbRef.current) inputVideoThumbRef.current.value = '';
-  };
+  const resetInputsVideo = () => { if (inputVideoThumbRef.current) inputVideoThumbRef.current.value = ''; };
 
   const prepararEdicion = (p: any) => {
     setEditandoId(p.id); setNombre(p.nombre); setDescripcion(p.descripcion);
@@ -215,7 +308,7 @@ export default function AdminPage() {
         avanzar();
       }
 
-      const nuevasUrls = [];
+      const nuevasUrls: string[] = [];
       for (let i = 0; i < archivosOrdenados.length; i++) {
         const file = archivosOrdenados[i];
         setLabelProgreso(`Comprimiendo lámina ${i + 1} de ${archivosOrdenados.length}...`);
@@ -234,6 +327,7 @@ export default function AdminPage() {
 
       showToast('¡Proyecto sincronizado con éxito!', 'success');
       cancelarEdicion(); fetchProyectos();
+      setRefrescarStorage(r => r + 1);
     } catch (err: any) { showToast(err.message, 'error'); }
     finally { setCargando(false); setProgreso(0); setLabelProgreso(''); }
   };
@@ -258,6 +352,7 @@ export default function AdminPage() {
       else { if (!videoThumb) throw new Error('Miniatura de video obligatoria'); await supabase.from('videos_proyectos').insert([payload]); }
       showToast('¡Video guardado con éxito!', 'success');
       cancelarEdicionVideo(); fetchVideos();
+      setRefrescarStorage(r => r + 1);
     } catch (err: any) { showToast(err.message, 'error'); }
     finally { setCargando(false); setProgreso(0); setLabelProgreso(''); }
   };
@@ -270,6 +365,7 @@ export default function AdminPage() {
       if (files.length) await supabase.storage.from('galeria').remove(files);
       await supabase.from('proyectos').delete().eq('id', id);
       showToast('Proyecto eliminado', 'error'); fetchProyectos();
+      setRefrescarStorage(r => r + 1);
     } catch (err: any) { showToast(err.message, 'error'); }
   };
 
@@ -280,6 +376,7 @@ export default function AdminPage() {
       if (fileName) await supabase.storage.from('galeria').remove([fileName]);
       await supabase.from('videos_proyectos').delete().eq('id', id);
       showToast('Video eliminado', 'error'); fetchVideos();
+      setRefrescarStorage(r => r + 1);
     } catch (err: any) { showToast(err.message, 'error'); }
   };
 
@@ -289,7 +386,7 @@ export default function AdminPage() {
       <div className="max-w-6xl mx-auto">
         <header className="flex justify-between mb-12 border-b border-zinc-800 pb-8">
           <h1 className="text-2xl font-black uppercase italic">KOH <span className="text-[#7c8d74]">ADMIN</span></h1>
-          <p className="text-[10px] text-zinc-500 font-mono self-end">v2.9 — Drag & Drop</p>
+          <p className="text-[10px] text-zinc-500 font-mono self-end">v3.0 — Storage</p>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
@@ -330,7 +427,6 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                {/* DRAG & DROP SORTER */}
                 {archivosOrdenados.length > 0 && (
                   <LaminasSorter archivos={archivosOrdenados} onChange={setArchivosOrdenados} />
                 )}
@@ -386,7 +482,11 @@ export default function AdminPage() {
           </div>
 
           {/* LISTADOS LATERALES */}
-          <div className="lg:col-span-5 space-y-12">
+          <div className="lg:col-span-5 space-y-6">
+
+            {/* STORAGE WIDGET */}
+            <StorageWidget refrescar={refrescarStorage} />
+
             <div>
               <h3 className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-4 border-l-2 border-[#7c8d74] pl-2">Portafolio Online</h3>
               <div className="space-y-3">
@@ -407,6 +507,7 @@ export default function AdminPage() {
                 ))}
               </div>
             </div>
+
             <div>
               <h3 className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-4 border-l-2 border-red-900 pl-2">Videos Online</h3>
               <div className="space-y-3">
