@@ -53,7 +53,7 @@ function ProgressBar({ progreso, label }: { progreso: number; label: string }) {
 }
 
 // --- STORAGE WIDGET ---
-const LIMITE_BYTES = 1 * 1024 * 1024 * 1024; // 1 GB plan gratuito Supabase
+const LIMITE_BYTES = 1 * 1024 * 1024 * 1024;
 
 function formatBytes(bytes: number) {
   if (bytes === 0) return '0 B';
@@ -75,9 +75,7 @@ function StorageWidget({ refrescar }: { refrescar: number }) {
       let todos: any[] = [];
       while (true) {
         const { data, error } = await supabase.storage.from('galeria').list('', {
-          limit: 100,
-          offset,
-          sortBy: { column: 'name', order: 'asc' },
+          limit: 100, offset, sortBy: { column: 'name', order: 'asc' },
         });
         if (error || !data || data.length === 0) break;
         todos = [...todos, ...data];
@@ -111,7 +109,6 @@ function StorageWidget({ refrescar }: { refrescar: number }) {
           <RefreshCw size={12} className={cargando ? 'animate-spin' : ''} />
         </button>
       </div>
-
       {cargando ? (
         <div className="space-y-2">
           <div className="h-1.5 bg-zinc-800 rounded-full animate-pulse" />
@@ -121,17 +118,13 @@ function StorageWidget({ refrescar }: { refrescar: number }) {
         <>
           <div className="space-y-1.5">
             <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-700 ${barColor}`}
-                style={{ width: `${porcentaje}%` }}
-              />
+              <div className={`h-full rounded-full transition-all duration-700 ${barColor}`} style={{ width: `${porcentaje}%` }} />
             </div>
             <div className="flex justify-between items-center">
               <span className={`text-[10px] font-black ${textColor}`}>{formatBytes(totalBytes ?? 0)} usados</span>
               <span className="text-[10px] text-zinc-600 font-bold">1 GB límite</span>
             </div>
           </div>
-
           <div className="grid grid-cols-3 gap-2 pt-2 border-t border-zinc-800">
             <div className="text-center">
               <p className={`text-sm font-black ${textColor}`}>{porcentaje.toFixed(1)}%</p>
@@ -146,7 +139,6 @@ function StorageWidget({ refrescar }: { refrescar: number }) {
               <p className="text-[8px] text-zinc-600 uppercase font-bold">Disponibles</p>
             </div>
           </div>
-
           {porcentaje > 80 && (
             <div className="flex items-center gap-2 p-2 bg-red-950/30 rounded-lg border border-red-900/50">
               <AlertCircle size={12} className="text-red-500 shrink-0" />
@@ -184,8 +176,7 @@ function LaminasSorter({ archivos, onChange }: { archivos: File[]; onChange: (fi
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
         {archivos.map((file, idx) => (
           <div
-            key={idx}
-            draggable
+            key={idx} draggable
             onDragStart={() => handleDragStart(idx)}
             onDragOver={e => handleDragOver(e, idx)}
             onDrop={() => handleDrop(idx)}
@@ -201,6 +192,96 @@ function LaminasSorter({ archivos, onChange }: { archivos: File[]; onChange: (fi
             <div className="absolute top-2 right-2 text-zinc-400"><GripVertical size={14} /></div>
             <p className="absolute bottom-2 left-0 right-0 text-center text-[8px] text-zinc-300 truncate px-2">{file.name}</p>
             {dragOver === idx && <div className="absolute inset-0 border-2 border-[#7c8d74] rounded-xl bg-[#7c8d74]/10" />}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// --- DRAG & DROP PARA PROYECTOS DEL LISTADO ---
+function ProyectosSorter({
+  proyectos,
+  onReordenar,
+  onEditar,
+  onBorrar,
+}: {
+  proyectos: any[];
+  onReordenar: (proyectos: any[]) => void;
+  onEditar: (p: any) => void;
+  onBorrar: (p: any) => void;
+}) {
+  const dragIndex = useRef<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
+  const [guardando, setGuardando] = useState(false);
+
+  const handleDragStart = (idx: number) => { dragIndex.current = idx; };
+  const handleDragOver = (e: React.DragEvent, idx: number) => { e.preventDefault(); setDragOver(idx); };
+  const handleDrop = async (idx: number) => {
+    if (dragIndex.current === null || dragIndex.current === idx) { setDragOver(null); return; }
+    const nuevos = [...proyectos];
+    const [item] = nuevos.splice(dragIndex.current, 1);
+    nuevos.splice(idx, 0, item);
+    dragIndex.current = null;
+    setDragOver(null);
+    onReordenar(nuevos);
+
+    // Guardar orden en Supabase
+    setGuardando(true);
+    try {
+      await Promise.all(
+        nuevos.map((p, i) => supabase.from('proyectos').update({ orden: i + 1 }).eq('id', p.id))
+      );
+    } catch (err) {
+      console.error('Error guardando orden:', err);
+    } finally {
+      setGuardando(false);
+    }
+  };
+  const handleDragEnd = () => { dragIndex.current = null; setDragOver(null); };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest border-l-2 border-[#7c8d74] pl-2">
+          Portafolio Online
+        </h3>
+        {guardando && (
+          <span className="text-[9px] text-[#7c8d74] font-bold flex items-center gap-1">
+            <RefreshCw size={10} className="animate-spin" /> Guardando orden...
+          </span>
+        )}
+      </div>
+      <p className="text-[9px] text-zinc-600 mb-3 flex items-center gap-1">
+        <GripVertical size={10} className="text-zinc-600" /> Arrastra para reordenar
+      </p>
+      <div className="space-y-2">
+        {proyectos.map((p, idx) => (
+          <div
+            key={p.id}
+            draggable
+            onDragStart={() => handleDragStart(idx)}
+            onDragOver={e => handleDragOver(e, idx)}
+            onDrop={() => handleDrop(idx)}
+            onDragEnd={handleDragEnd}
+            className={`flex items-center justify-between bg-[#1c1e1a] p-4 border rounded-lg group transition-all cursor-grab active:cursor-grabbing select-none
+              ${dragOver === idx
+                ? 'border-[#7c8d74] bg-[#7c8d74]/5 scale-[1.01] shadow-lg shadow-[#7c8d74]/10'
+                : 'border-zinc-800 hover:border-[#7c8d74]/50'}`}
+          >
+            <div className="flex items-center gap-3 overflow-hidden">
+              {/* Grip handle */}
+              <GripVertical size={14} className="text-zinc-700 group-hover:text-zinc-500 shrink-0 transition-colors" />
+              <img src={p.miniatura_url} className="w-10 h-10 object-cover rounded border border-zinc-800 shadow-inner shrink-0" />
+              <div className="flex flex-col overflow-hidden">
+                <span className="text-[10px] font-black uppercase truncate w-28">{p.nombre}</span>
+                {p.es_voluntario && <span className="text-[7px] text-[#7c8d74] font-bold uppercase tracking-tighter">Voluntario</span>}
+              </div>
+            </div>
+            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+              <button onClick={() => onEditar(p)} className="p-2 text-zinc-400 hover:text-white"><Edit2 size={14} /></button>
+              <button onClick={() => onBorrar(p)} className="p-2 text-zinc-400 hover:text-red-500"><Trash2 size={14} /></button>
+            </div>
           </div>
         ))}
       </div>
@@ -247,7 +328,8 @@ export default function AdminPage() {
   useEffect(() => { fetchProyectos(); fetchVideos(); }, []);
 
   async function fetchProyectos() {
-    const { data } = await supabase.from('proyectos').select('*').order('created_at', { ascending: false });
+    // Ordenar por columna 'orden' primero, luego por fecha como fallback
+    const { data } = await supabase.from('proyectos').select('*').order('orden', { ascending: true }).order('created_at', { ascending: false });
     if (data) setProyectos(data);
   }
 
@@ -322,8 +404,14 @@ export default function AdminPage() {
       }
 
       const payload = { nombre, descripcion, es_voluntario: esVoluntario, miniatura_url: urlFinalMiniatura, infografias: [...urlsExistentes, ...nuevasUrls] };
-      if (editandoId) { await supabase.from('proyectos').update(payload).eq('id', editandoId); }
-      else { if (!miniatura) throw new Error('Miniatura obligatoria'); await supabase.from('proyectos').insert([payload]); }
+      if (editandoId) {
+        await supabase.from('proyectos').update(payload).eq('id', editandoId);
+      } else {
+        if (!miniatura) throw new Error('Miniatura obligatoria');
+        // Al crear nuevo, asignarle el orden al final
+        const maxOrden = proyectos.length > 0 ? Math.max(...proyectos.map(p => p.orden || 0)) : 0;
+        await supabase.from('proyectos').insert([{ ...payload, orden: maxOrden + 1 }]);
+      }
 
       showToast('¡Proyecto sincronizado con éxito!', 'success');
       cancelarEdicion(); fetchProyectos();
@@ -357,13 +445,13 @@ export default function AdminPage() {
     finally { setCargando(false); setProgreso(0); setLabelProgreso(''); }
   };
 
-  const handleBorrar = async (id: number, thumbUrl: string, infoUrls: string[]) => {
+  const handleBorrar = async (p: any) => {
     if (!confirm('¿Eliminar permanentemente? Se borrarán los archivos del servidor.')) return;
     try {
       const getFileName = (url: string) => url.split('/').pop()?.split('?')[0];
-      const files = [getFileName(thumbUrl), ...(infoUrls?.map(getFileName) || [])].filter(Boolean) as string[];
+      const files = [getFileName(p.miniatura_url), ...(p.infografias?.map(getFileName) || [])].filter(Boolean) as string[];
       if (files.length) await supabase.storage.from('galeria').remove(files);
-      await supabase.from('proyectos').delete().eq('id', id);
+      await supabase.from('proyectos').delete().eq('id', p.id);
       showToast('Proyecto eliminado', 'error'); fetchProyectos();
       setRefrescarStorage(r => r + 1);
     } catch (err: any) { showToast(err.message, 'error'); }
@@ -386,7 +474,7 @@ export default function AdminPage() {
       <div className="max-w-6xl mx-auto">
         <header className="flex justify-between mb-12 border-b border-zinc-800 pb-8">
           <h1 className="text-2xl font-black uppercase italic">KOH <span className="text-[#7c8d74]">ADMIN</span></h1>
-          <p className="text-[10px] text-zinc-500 font-mono self-end">v3.0 — Storage</p>
+          <p className="text-[10px] text-zinc-500 font-mono self-end">v3.1 — Orden Proyectos</p>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
@@ -484,29 +572,15 @@ export default function AdminPage() {
           {/* LISTADOS LATERALES */}
           <div className="lg:col-span-5 space-y-6">
 
-            {/* STORAGE WIDGET */}
             <StorageWidget refrescar={refrescarStorage} />
 
-            <div>
-              <h3 className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-4 border-l-2 border-[#7c8d74] pl-2">Portafolio Online</h3>
-              <div className="space-y-3">
-                {proyectos.map(p => (
-                  <div key={p.id} className="flex items-center justify-between bg-[#1c1e1a] p-4 border border-zinc-800 rounded-lg group hover:border-[#7c8d74]/50 transition-all">
-                    <div className="flex items-center gap-3 overflow-hidden">
-                      <img src={p.miniatura_url} className="w-10 h-10 object-cover rounded border border-zinc-800 shadow-inner" />
-                      <div className="flex flex-col">
-                        <span className="text-[10px] font-black uppercase truncate w-32">{p.nombre}</span>
-                        {p.es_voluntario && <span className="text-[7px] text-[#7c8d74] font-bold uppercase tracking-tighter">Voluntario</span>}
-                      </div>
-                    </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                      <button onClick={() => prepararEdicion(p)} className="p-2 text-zinc-400 hover:text-white"><Edit2 size={14} /></button>
-                      <button onClick={() => handleBorrar(p.id, p.miniatura_url, p.infografias)} className="p-2 text-zinc-400 hover:text-red-500"><Trash2 size={14} /></button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            {/* LISTADO PROYECTOS CON DRAG & DROP */}
+            <ProyectosSorter
+              proyectos={proyectos}
+              onReordenar={setProyectos}
+              onEditar={prepararEdicion}
+              onBorrar={handleBorrar}
+            />
 
             <div>
               <h3 className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-4 border-l-2 border-red-900 pl-2">Videos Online</h3>

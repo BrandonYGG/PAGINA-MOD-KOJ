@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { supabase } from '@/supabaseClient';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Eye, Loader2, Info } from 'lucide-react';
 import { ScrollArea } from '../ui/scroll-area';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
@@ -16,17 +16,21 @@ interface Project {
   miniatura_url: string;
   infografias: string[];
   es_voluntario?: boolean;
+  orden?: number;
 }
 
 export default function Projects() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [zoom, setZoom] = useState(1);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetch() {
-      const { data } = await supabase.from('proyectos').select('*').order('created_at', { ascending: false });
+      const { data } = await supabase
+        .from('proyectos')
+        .select('*')
+        .order('orden', { ascending: true })
+        .order('created_at', { ascending: false });
       if (data) setProjects(data);
       setLoading(false);
     }
@@ -61,7 +65,6 @@ export default function Projects() {
                 </DialogHeader>
 
                 <ScrollArea className="flex-grow pr-4">
-                  {/* PÁRRAFO DE JUSTIFICACIÓN CONDICIONAL */}
                   {selectedProject.es_voluntario && (
                     <div className="mb-6 p-4 bg-blue-900/20 border-l-4 border-blue-500 rounded-r-lg">
                       <div className="flex items-center gap-2 mb-2 text-blue-400">
